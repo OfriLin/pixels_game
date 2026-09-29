@@ -83,6 +83,7 @@ code { font-family: var(--mono); font-size: .88em; }
   white-space: nowrap;
 }
 button { font-family: inherit; }
+.dim { direction: ltr; unicode-bidi: isolate; }
 [hidden] { display: none !important; }
 
 /* ===================== סרגל עליון ===================== */
@@ -149,31 +150,26 @@ button { font-family: inherit; }
 @keyframes blink { 50% { opacity: .2; } }
 
 /* ===================== פריסה ===================== */
+/* צד ימין: השאלה והקוד. צד שמאל: התמונות */
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-.stage {
-  background: var(--canvas);
-  color: var(--canvas-ink);
-  border-inline-end: 2px solid var(--line);
-}
+.task { background: var(--paper); border-inline-end: 2px solid var(--line); }
+.stage { background: var(--canvas); color: var(--canvas-ink); }
 .stage-inner {
-  max-width: 980px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 32px 32px 56px;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 36px 28px;
+  gap: 40px 28px;
   align-items: start;
 }
 /* כשיש מקום, התמונה הנתונה והתמונה שלכם עומדות זו לצד זו */
 .stage-inner.is-split { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.stage-inner.is-split #given-block { grid-column: 1; grid-row: 1; }
-.stage-inner.is-split #given-code  { grid-column: 1; grid-row: 2; }
-.stage-inner.is-split #result-block { grid-column: 2; grid-row: 1 / span 2; }
-.stage-block { width: 100%; max-width: var(--col, 400px); margin-inline: auto; }
-.stage-inner.is-split #given-code { margin-top: -12px; }
+.stage-block { min-width: 0; }
+.stage-frame { width: max-content; max-width: 100%; margin-inline: auto; }
 .stage-head {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-  margin: 0 auto 12px;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+  margin-bottom: 12px;
 }
 .stage-head h2 { margin: 0; font-size: 20px; font-weight: 700; line-height: 1.3; }
 .stage-meta { font-size: 15px; }
@@ -186,35 +182,22 @@ button { font-family: inherit; }
 }
 
 /* ===================== תצוגת פיקסלים ===================== */
-.pixel-view { width: 100%; margin: 0 auto; display: flex; flex-direction: column; }
+.pixel-view {
+  width: max-content; max-width: 100%;
+  margin: 0 auto;
+  display: flex; flex-direction: column; align-items: center;
+}
 .px-grid {
+  position: relative;
+  z-index: 1;
   display: grid;
   gap: 2px;
-  width: 100%;
+  max-width: 100%;
   background: var(--grid-line);
   border: 2px solid var(--grid-line);
 }
-.px {
-  position: relative;
-  display: flex; align-items: center; justify-content: center;
-  min-width: 0;
-  overflow: hidden;
-  font-family: var(--mono);
-  font-weight: 500;
-  font-size: var(--fs, 13px);
-  outline: none;
-}
-.px-idx {
-  position: absolute; top: 5px; left: 6px;
-  font-size: var(--idx-fs, 12px);
-  font-weight: 600;
-  line-height: 1;
-  opacity: .72;
-}
-.px-tup { white-space: nowrap; line-height: 1; }
-.hide-tuples .px-tup, .hide-idx .px-idx { display: none; }
+.px { position: relative; min-width: 0; }
 .px.is-active { box-shadow: inset 0 0 0 3px currentColor; }
-.px:focus-visible { box-shadow: inset 0 0 0 3px currentColor, inset 0 0 0 6px var(--accent); }
 .px-missing {
   background: repeating-linear-gradient(45deg, #E6E8EB 0 6px, #C9CCD2 6px 12px);
   color: #15171B;
@@ -233,9 +216,9 @@ button { font-family: inherit; }
 @keyframes px-in { from { opacity: 0; transform: scale(.55); } to { opacity: 1; transform: none; } }
 
 .px-empty {
-  width: 100%;
+  max-width: 100%;
   display: flex; align-items: center; justify-content: center;
-  padding: 16px;
+  padding: 12px;
   border: 2px dashed var(--canvas-ink);
   background-color: var(--check-a);
   background-image: conic-gradient(var(--check-b) 25%, var(--check-a) 0 50%, var(--check-b) 0 75%, var(--check-a) 0);
@@ -243,88 +226,67 @@ button { font-family: inherit; }
 }
 .px-empty p {
   margin: 0;
-  max-width: 85%;
-  padding: 8px 14px;
+  padding: 6px 10px;
   text-align: center;
-  font-size: 15px;
+  font-size: 14px;
+  line-height: 1.45;
   background: var(--paper);
   color: var(--ink);
   border: 2px solid var(--line);
 }
 
-.inspector {
-  background: var(--paper);
-  color: var(--ink);
-  border: 2px solid var(--grid-line);
-  border-top: 0;
-  padding: 12px 14px;
-  min-height: 132px;
-}
-.insp-idle { margin: 0; color: var(--muted); font-size: 15px; }
-.insp-top { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; }
-.insp-code { font-size: 16px; font-weight: 600; }
-.insp-pos { font-size: 14px; color: var(--muted); }
-.insp-bars { margin-top: 10px; display: grid; gap: 6px; }
-.bar { display: grid; grid-template-columns: 14px 1fr 30px; align-items: center; gap: 10px; font: 500 13px/1 var(--mono); }
-.bar-track { position: relative; height: 10px; background: var(--code-bg); border: 1px solid var(--line-soft); }
-.bar-fill { position: absolute; top: 0; bottom: 0; left: 0; }
-.bar-val { text-align: right; }
-.insp-note { margin: 8px 0 0; font-size: 14.5px; line-height: 1.5; color: var(--bad); }
-
-.list-title { margin: 0 0 8px; font-size: 15px; font-weight: 700; }
+/* הרשימה בפייתון, מחוברת לתחתית התמונה */
 .list-code {
-  margin: 0;
+  align-self: stretch;
+  margin: -2px 0 0;
   padding: 12px 14px;
   overflow-x: auto;
   white-space: pre;
   text-align: left;
-  font: 500 13.5px/1.75 var(--mono);
+  font: 500 13px/1.75 var(--mono);
   background: var(--paper);
   color: var(--ink);
-  border: 2px solid var(--line);
+  border: 2px solid var(--grid-line);
 }
 .tok-name { font-weight: 600; }
-.tok-tuple { padding: 1px 0; }
-.tok-tuple.is-active { background: var(--accent); color: var(--accent-ink); }
-.list-details { margin-top: 16px; }
-.list-details summary, .hint summary {
+.tok { padding: 1px 0; }
+.tok-diff { color: var(--bad); font-weight: 600; }
+.tok-bad { text-decoration: underline wavy var(--bad); text-underline-offset: 3px; }
+.tok.is-active { background: var(--accent); color: var(--accent-ink); }
+
+.hint summary {
   cursor: pointer;
   list-style: none;
   font-weight: 700;
   font-size: 15px;
   display: inline-flex; align-items: center; gap: 8px;
 }
-.list-details summary::-webkit-details-marker, .hint summary::-webkit-details-marker { display: none; }
-.list-details summary::before, .hint summary::before {
+.hint summary::-webkit-details-marker { display: none; }
+.hint summary::before {
   content: "+";
   display: inline-grid; place-items: center;
   width: 20px; height: 20px;
   border: 2px solid currentColor;
   font: 700 14px/1 var(--mono);
 }
-.list-details[open] summary::before, .hint[open] summary::before { content: "−"; }
-.list-details summary:focus-visible, .hint summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
-.list-details .list-code { margin-top: 8px; }
+.hint[open] summary::before { content: "−"; }
+.hint summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 
 /* ===================== חלונית המשימה ===================== */
 .task { background: var(--paper); }
 .task-inner { max-width: 700px; margin: 0 auto; padding: 32px 40px 40px; }
-.q-count { margin: 0 0 4px; font-size: 15px; font-weight: 500; color: var(--muted); }
 .task h1 { margin: 0 0 14px; font-size: clamp(28px, 2.5vw, 36px); line-height: 1.15; font-weight: 700; letter-spacing: -.01em; }
 .goal p { margin: 0 0 10px; max-width: 62ch; }
-.reqs { list-style: none; padding: 0; margin: 12px 0 14px; display: flex; flex-wrap: wrap; gap: 8px; }
-.reqs li { border: 2px solid var(--line); padding: 3px 10px; font-size: 14.5px; font-weight: 500; }
-.hint { margin: 0 0 18px; }
+.hint { margin-top: 16px; }
 .hint-body { margin-top: 8px; padding: 10px 14px; background: var(--code-bg); border-inline-start: 4px solid var(--accent); font-size: 16px; }
 
-.editor-frame { border: 2px solid var(--line); }
+.editor-frame { border: 2px solid var(--line); margin-top: 18px; }
 .editor-bar {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 7px 12px;
   background: var(--ink); color: var(--paper);
   font-size: 14px; font-weight: 500;
 }
-.editor-bar kbd { font: 500 12px/1 var(--mono); border: 1px solid currentColor; padding: 2px 5px; }
 #editor .CodeMirror {
   height: auto;
   font-family: var(--mono);
@@ -435,13 +397,14 @@ button { font-family: inherit; }
 /* ===================== מסכים קטנים ===================== */
 @media (max-width: 980px) {
   .workspace { grid-template-columns: minmax(0, 1fr); }
-  .stage { border-inline-end: 0; border-bottom: 2px solid var(--line); }
+  .task { border-inline-end: 0; }
+  .stage { order: -1; border-bottom: 2px solid var(--line); }
   .topbar { height: auto; flex-wrap: wrap; gap: 12px 24px; padding: 12px 18px; }
   .stage-inner { padding: 24px 18px 36px; }
   .task-inner { padding: 24px 18px 36px; }
 }
 @media (max-width: 560px) {
-  .brand-sub, .kbd-hint { display: none; }
+  .brand-sub { display: none; }
   .engine { margin-inline-start: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -467,44 +430,14 @@ button { font-family: inherit; }
 </header>
 
 <main class="workspace">
-  <!-- צד ימין: התמונות -->
-  <section class="stage" aria-label="תמונות">
-    <div class="stage-inner" id="stage-inner">
-      <div class="stage-block" id="given-block">
-        <div class="stage-head" id="given-head">
-          <h2>התמונה הנתונה</h2>
-          <span class="stage-meta" id="given-meta"></span>
-        </div>
-        <div id="given-view"></div>
-      </div>
-      <div class="stage-block" id="given-code"></div>
-      <div class="stage-block" id="result-block">
-        <div class="stage-head" id="result-head">
-          <h2>התמונה שלכם</h2>
-          <span class="stage-meta" id="result-meta"></span>
-        </div>
-        <div id="result-view"></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- צד שמאל: המטרה ועורך הקוד -->
-  <section class="task" aria-label="המשימה">
+  <!-- צד ימין: השאלה, עורך הקוד וההרצה -->
+  <section class="task" aria-label="השאלה">
     <div class="task-inner">
-      <p class="q-count" id="q-count"></p>
       <h1 id="q-title"></h1>
       <div class="goal" id="q-goal"></div>
-      <ul class="reqs" id="q-reqs"></ul>
-      <details class="hint" id="q-hint">
-        <summary>רמז</summary>
-        <div class="hint-body" id="q-hint-body"></div>
-      </details>
 
       <div class="editor-frame">
-        <div class="editor-bar">
-          <span>הקוד שלכם</span>
-          <span class="kbd-hint"><span dir="ltr"><kbd>Ctrl</kbd> + <kbd>Enter</kbd></span> להרצה</span>
-        </div>
+        <div class="editor-bar"><span>הקוד שלכם</span></div>
         <div id="editor" dir="ltr"></div>
       </div>
 
@@ -515,6 +448,11 @@ button { font-family: inherit; }
         </button>
         <button type="button" class="btn" id="reset-btn">איפוס הקוד</button>
       </div>
+
+      <details class="hint" id="q-hint">
+        <summary>רמז</summary>
+        <div class="hint-body" id="q-hint-body"></div>
+      </details>
 
       <div class="status" id="status" aria-live="polite"></div>
 
@@ -529,6 +467,30 @@ button { font-family: inherit; }
         <button type="button" class="btn" id="prev-btn">השאלה הקודמת</button>
         <button type="button" class="btn" id="next-btn">השאלה הבאה</button>
       </nav>
+    </div>
+  </section>
+
+  <!-- צד שמאל: התמונות -->
+  <section class="stage" aria-label="תמונות">
+    <div class="stage-inner" id="stage-inner">
+      <div class="stage-block" id="given-block">
+        <div class="stage-frame">
+          <div class="stage-head">
+            <h2>התמונה הנתונה</h2>
+            <span class="stage-meta" id="given-meta"></span>
+          </div>
+          <div id="given-view"></div>
+        </div>
+      </div>
+      <div class="stage-block" id="result-block">
+        <div class="stage-frame">
+          <div class="stage-head">
+            <h2>התמונה שלכם</h2>
+            <span class="stage-meta" id="result-meta"></span>
+          </div>
+          <div id="result-view"></div>
+        </div>
+      </div>
     </div>
   </section>
 </main>
@@ -696,9 +658,17 @@ def _pick(ns, names):
     return found[0]
 
 
+def _short_repr(obj):
+    try:
+        text = repr(obj)
+    except Exception:
+        text = "?"
+    return text if len(text) <= 40 else text[:37] + "..."
+
+
 def _inspect(value, n, var):
     if not isinstance(value, (list, tuple)):
-        return None, [f"`{var}` צריך להיות רשימה של פיקסלים, אבל הוא מסוג `{type(value).__name__}`."], {}, []
+        return None, [f"`{var}` צריך להיות רשימה של פיקסלים, אבל הוא מסוג `{type(value).__name__}`."], {}, [], None
     items = list(value)
     render, notes, as_list = [], {}, []
     for i, px in enumerate(items[:n]):
@@ -708,7 +678,10 @@ def _inspect(value, n, var):
         elif len(px) != 3:
             note = f"בטאפל יש {len(px)} ערכים במקום 3."
         elif not all(isinstance(c, int) and not isinstance(c, bool) for c in px):
-            note = "כל ערך בטאפל צריך להיות מספר שלם."
+            if any(isinstance(c, float) for c in px):
+                note = "כל ערך בטאפל צריך להיות מספר שלם, אבל יש כאן מספר עשרוני. חילוק רגיל `/` נותן מספר עשרוני, וחילוק שלמים `//` נותן מספר שלם."
+            else:
+                note = "כל ערך בטאפל צריך להיות מספר שלם."
         elif not all(0 <= c <= 255 for c in px):
             note = "כל ערך בטאפל צריך להיות בין 0 ל-255."
         if note:
@@ -723,8 +696,10 @@ def _inspect(value, n, var):
     if len(items) != n:
         problems.append(f"ברשימה `{var}` יש {len(items)} פיקסלים, אבל בתמונה צריכים להיות {n}.")
     if notes:
-        problems.append(f"{len(notes)} מהפיקסלים אינם טאפל תקין מהצורה `(R, G, B)`. רחפו מעליהם כדי לראות מה הבעיה.")
-    return render, problems, notes, as_list
+        problems.append(f"{len(notes)} מהפיקסלים אינם טאפל תקין מהצורה `(R, G, B)`. הם מסומנים באדום ברשימה.")
+        problems.extend(list(dict.fromkeys(notes.values()))[:2])
+    reprs = [_short_repr(px) for px in items[:1024]]
+    return render, problems, notes, as_list, reprs
 
 
 def _run(p):
@@ -771,8 +746,8 @@ def _run(p):
         out["status"] = "missing"
         return out
     out["var"] = var
-    render, problems, notes, as_list = _inspect(value, n, var)
-    out["render"], out["problems"], out["cellNotes"] = render, problems, notes
+    render, problems, notes, as_list, reprs = _inspect(value, n, var)
+    out["render"], out["problems"], out["cellNotes"], out["reprs"] = render, problems, notes, reprs
     if render is None:
         out["status"] = "invalid"
         return out
@@ -873,19 +848,19 @@ const STORAGE_KEY = "pixel-by-pixel:v1";   // שמירת הקוד וההתקדמ
    השאלות
    ----------------------------------------------------------------
    כדי להוסיף שאלה, העתיקו את אחד האובייקטים והוסיפו אותו לסוף הרשימה.
+   מספר השאלה נקבע לפי המקום שלה ברשימה.
 
    id           מזהה ייחודי. הקוד וההתקדמות של התלמידים נשמרים לפיו,
                 לכן לא כדאי לשנות אותו אחרי שהאתר כבר בשימוש.
-   title        כותרת השאלה.
-   width,height גודל התמונה בפיקסלים.
+   width,height גודל התמונה בפיקסלים: רוחב (פיקסלים בשורה) וגובה (מספר שורות).
    pixels       התמונה הנתונה: רשימה של [R, G, B] לפי הסדר, שורה אחרי שורה.
-   goal         תיאור המשימה (HTML). קוד כותבים בתוך <code>...</code>.
-   requirements תגיות קצרות שמופיעות מתחת למטרה (HTML).
+   goal         תיאור המשימה (HTML). קוד כותבים בתוך <code>...</code>,
+                ומידות כמו 3×2 בתוך <span class="dim">...</span>.
    starter      הקוד שמופיע בעורך בהתחלה.
    solution     פתרון נכון. האתר מריץ אותו ומשווה את התוצאה שלו לתוצאה של התלמיד,
                 כך שאין צורך לכתוב את התמונה המבוקשת ידנית.
    resultVars   שם המשתנה שבו תהיה התמונה החדשה. אפשר לתת כמה שמות חלופיים.
-   rules        noLoops: true   אסור להשתמש בלולאה.
+   rules        noLoops: true    אסור להשתמש בלולאה.
                 requireFor: true חובה להשתמש בלולאת for.
    hint         רמז (HTML). אפשר להשמיט.
 
@@ -896,7 +871,6 @@ const STORAGE_KEY = "pixel-by-pixel:v1";   // שמירת הקוד וההתקדמ
 const QUESTIONS = [
   {
     id: "q1-black-corners",
-    title: "הפיקסל הראשון והאחרון",
     width: 2,
     height: 2,
     pixels: [
@@ -904,9 +878,8 @@ const QUESTIONS = [
       [0, 0, 255], [255, 255, 255],
     ],
     goal: `
-      <p>נתונה תמונה בגודל 2×2 פיקסלים, השמורה ברשימה <code>pixels</code>.</p>
+      <p>נתונה תמונה בגודל <span class="dim">2×2</span> פיקסלים, השמורה ברשימה <code>pixels</code>.</p>
       <p>צרו תמונה חדשה שבה הפיקסל הראשון והפיקסל האחרון הופכים לשחור. שנו את הפיקסלים ברשימה, ללא לולאה.</p>`,
-    requirements: ["בלי לולאה", "משנים את <code>pixels</code>"],
     starter: "pixels[0] = (0,0,0)\n",
     solution: "pixels[0] = (0,0,0)\npixels[3] = (0,0,0)\n",
     resultVars: ["pixels"],
@@ -914,26 +887,80 @@ const QUESTIONS = [
     hint: `ברשימה של 4 פיקסלים האינדקסים הם <code>0</code>, <code>1</code>, <code>2</code>, <code>3</code>. מה האינדקס של הפיקסל האחרון?`,
   },
   {
-    id: "q2-no-blue",
-    title: "בלי הערוץ הכחול",
+    id: "q2-all-red",
+    width: 3,
+    height: 2,
+    pixels: [
+      [100, 150, 200], [0, 255, 255],  [255, 0, 128],
+      [80, 180, 240],  [50, 200, 100], [220, 220, 220],
+    ],
+    goal: `
+      <p>נתונה תמונה בגודל <span class="dim">3×2</span> פיקסלים, השמורה ברשימה <code>pixels</code>.</p>
+      <p>צרו תמונה חדשה שבה כל הפיקסלים הופכים לאדום מלא <code>(255, 0, 0)</code>.</p>
+      <p>כתבו לולאת <code>for</code> שעוברת על הרשימה <code>pixels</code>, ובונה רשימה חדשה בשם <code>red_pixels</code>.</p>`,
+    starter: "red_pixels = []\n",
+    solution: "red_pixels = []\nfor r, g, b in pixels:\n    red_pixels.append((255, 0, 0))\n",
+    resultVars: ["red_pixels"],
+    rules: { requireFor: true },
+    hint: `הלולאה רצה פעם אחת על כל פיקסל. בכל סיבוב הוסיפו ל-<code>red_pixels</code> את הטאפל <code>(255, 0, 0)</code>, בלי קשר לצבע המקורי של הפיקסל.`,
+  },
+  {
+    id: "q3-no-blue",
+    width: 3,
+    height: 3,
+    pixels: [
+      [255, 255, 255], [100, 150, 200], [0, 0, 255],
+      [50, 200, 100],  [255, 0, 128],   [0, 255, 255],
+      [120, 80, 220],  [200, 200, 200], [10, 20, 30],
+    ],
+    goal: `
+      <p>נתונה תמונה בגודל <span class="dim">3×3</span> פיקסלים, השמורה ברשימה <code>pixels</code>.</p>
+      <p>צרו תמונה חדשה ללא ערוץ הצבע הכחול. כתבו לולאת <code>for</code> שעוברת על הרשימה <code>pixels</code>, ובונה רשימה חדשה בשם <code>no_blue</code>.</p>
+      <p>ברשימה החדשה, הערכים R ו-G יישארו כפי שהיו במקור, אך הערך B יהפוך ל-0.</p>`,
+    starter: "no_blue = []\n",
+    solution: "no_blue = []\nfor r, g, b in pixels:\n    new_pixel = (r, g, 0)\n    no_blue.append(new_pixel)\n",
+    resultVars: ["no_blue"],
+    rules: { requireFor: true },
+    hint: `אפשר לפרק כל פיקסל לשלושה משתנים כבר בשורת הלולאה: <code>for r, g, b in pixels:</code>. בתוך הלולאה צרו טאפל חדש והוסיפו אותו לרשימה עם <code>append</code>.`,
+  },
+  {
+    id: "q4-turquoise",
     width: 4,
     height: 4,
     pixels: [
-      [255, 255, 255], [100, 150, 200], [0, 0, 255],     [50, 200, 100],
-      [255, 0, 128],   [0, 255, 255],   [120, 80, 220],  [200, 200, 200],
-      [10, 20, 30],    [255, 255, 0],   [80, 180, 240],  [150, 50, 100],
-      [0, 100, 200],   [220, 220, 220], [10, 255, 10],   [255, 0, 255],
+      [255, 255, 255], [0, 0, 0],       [255, 255, 255], [0, 0, 0],
+      [0, 0, 0],       [255, 255, 255], [0, 0, 0],       [255, 255, 255],
+      [255, 255, 255], [0, 0, 0],       [255, 255, 255], [0, 0, 0],
+      [0, 0, 0],       [255, 255, 255], [0, 0, 0],       [255, 255, 255],
     ],
     goal: `
-      <p>נתונה תמונה בגודל 4×4 פיקסלים, השמורה ברשימה <code>pixels</code>.</p>
-      <p>צרו תמונה חדשה ללא ערוץ הצבע הכחול. כתבו לולאת <code>for</code> שעוברת על הרשימה <code>pixels</code>, ובונה רשימה חדשה בשם <code>no_blue</code>.</p>
-      <p>ברשימה החדשה, הערכים R ו-G יישארו כפי שהיו במקור, אך הערך B יהפוך ל-0.</p>`,
-    requirements: ["לולאת <code>for</code>", "רשימה חדשה בשם <code>no_blue</code>"],
-    starter: "no_blue = []\n",
-    solution: "no_blue = []\nfor r, g, b in pixels:\n    new_pixel = (r, g, 0)\n    no_blue.append(new_pixel)\n",
-    resultVars: ["no_blue", "no_blue_pixels"],
+      <p>נתונה תמונה בגודל <span class="dim">4×4</span> פיקסלים, השמורה ברשימה <code>pixels</code>.</p>
+      <p>צרו תמונה חדשה שבה כל פיקסל שחור <code>(0, 0, 0)</code> מוחלף בפיקסל בצבע טורקיז <code>(0, 200, 200)</code>. המשבצות הלבנות יישארו ללא שינוי.</p>
+      <p>כתבו לולאת <code>for</code> שעוברת על הרשימה <code>pixels</code>, ובונה רשימה חדשה בשם <code>turquoise_board</code>.</p>`,
+    starter: "turquoise_board = []\n",
+    solution: "turquoise_board = []\nfor r, g, b in pixels:\n    if r == 0 and g == 0 and b == 0:\n        turquoise_board.append((0, 200, 200))\n    else:\n        turquoise_board.append((r, g, b))\n",
+    resultVars: ["turquoise_board"],
     rules: { requireFor: true },
-    hint: `אפשר לפרק כל פיקסל לשלושה משתנים כבר בשורת הלולאה: <code>for r, g, b in pixels:</code>. בתוך הלולאה צרו טאפל חדש והוסיפו אותו לרשימה עם <code>append</code>.`,
+    hint: `בתוך הלולאה בדקו עם <code>if</code> אם הפיקסל שחור, כלומר אם שלושת הערכים שווים ל-0. אם כן, הוסיפו טורקיז. אחרת (<code>else</code>), הוסיפו את הפיקסל המקורי <code>(r, g, b)</code>.`,
+  },
+  {
+    id: "q5-dark-pink",
+    width: 4,
+    height: 3,
+    pixels: [
+      [255, 220, 230], [255, 180, 200], [255, 140, 180], [255, 100, 160],
+      [255, 80, 150],  [255, 60, 140],  [240, 40, 130],  [220, 20, 120],
+      [200, 0, 110],   [180, 0, 100],   [160, 0, 90],    [140, 0, 80],
+    ],
+    goal: `
+      <p>נתונה תמונה בגודל <span class="dim">4×3</span> פיקסלים, השמורה ברשימה <code>pixels</code>.</p>
+      <p>צרו תמונה חדשה ומוחשכת שבה כל ערוץ צבע (R, G, B) מופחת לחצי מגודלו המקורי. השתמשו בחילוק שלמים <code>// 2</code>.</p>
+      <p>כתבו לולאת <code>for</code> שעוברת על הרשימה <code>pixels</code>, ובונה רשימה חדשה בשם <code>dark_pink</code>.</p>`,
+    starter: "dark_pink = []\n",
+    solution: "dark_pink = []\nfor r, g, b in pixels:\n    new_pixel = (r // 2, g // 2, b // 2)\n    dark_pink.append(new_pixel)\n",
+    resultVars: ["dark_pink"],
+    rules: { requireFor: true },
+    hint: `חילוק שלמים <code>//</code> נותן מספר שלם, למשל <code>255 // 2</code> הוא <code>127</code>. צרו טאפל חדש שבו כל אחד משלושת הערכים מחולק ב-2.`,
   },
 ];
 
@@ -1125,54 +1152,32 @@ const editor = createEditor($("editor"), () => run(), (value) => {
 });
 
 /* ================================================================
-   ציור תמונה כרשת של פיקסלים עם ערכי RGB
+   ציור תמונה כרשת של פיקסלים, עם הרשימה בפייתון מחוברת מתחתיה
    ================================================================ */
-function viewWidth(width, height) {
+function gridSize(width, height) {
   const longest = Math.max(width, height);
-  const side = Math.min(540, Math.max(300, longest * 135));
-  return Math.round((side * width) / longest);
+  const side = Math.min(360, Math.max(200, longest * 90));
+  return { w: Math.round((side * width) / longest), h: Math.round((side * height) / longest) };
 }
 
-function buildInspector(varName, width) {
-  const box = el("div", "inspector");
-  box.append(el("p", "insp-idle", "רחפו מעל פיקסל, או מעל טאפל ברשימה, כדי לראות את הערכים שלו."));
-  return {
-    el: box,
-    show(i, px, note, isDiff) {
-      box.replaceChildren();
-      const top = el("div", "insp-top");
-      const code = el("code", "insp-code", `${varName}[${i}] = ${tupleText(px)}`);
-      code.dir = "ltr";
-      top.append(code, el("span", "insp-pos", `שורה ${Math.floor(i / width)}, עמודה ${i % width}`));
-      box.append(top);
-      if (px) {
-        const bars = el("div", "insp-bars");
-        bars.dir = "ltr";
-        [["R", 0, "#FF1F1F"], ["G", 1, "#12B80A"], ["B", 2, "#1F48FF"]].forEach(([name, k, color]) => {
-          const row = el("div", "bar");
-          const track = el("span", "bar-track");
-          const fill = el("span", "bar-fill");
-          fill.style.width = `${(px[k] / 255) * 100}%`;
-          fill.style.background = color;
-          track.append(fill);
-          row.append(el("span", null, name), track, el("span", "bar-val", String(px[k])));
-          bars.append(row);
-        });
-        box.append(bars);
-      }
-      const notes = [];
-      if (note) notes.push(note);
-      else if (!px) notes.push("אין פיקסל במקום הזה ברשימה.");
-      if (isDiff) notes.push("הפיקסל הזה שונה ממה שציפינו.");
-      notes.forEach((t) => { const p = el("p", "insp-note"); p.innerHTML = rich(t); box.append(p); });
-    },
-  };
+function listLines(tokens, width) {
+  const lines = [];
+  for (let i = 0; i < tokens.length; i += width) lines.push("    " + tokens.slice(i, i + width).join(", ") + ",");
+  return lines;
 }
 
-function buildPixelView({ width, height, pixels, varName, diff = [], notes = {}, animate = false, code = "none", codeHost = null, compact = false }) {
+/* רוחב משוער של תמונה יחד עם הרשימה שלה, כדי להחליט אם יש מקום לשתי תמונות זו לצד זו */
+function naturalWidth(q) {
+  const longest = Math.max(0, ...listLines(q.pixels.map(tupleText), q.width).map((l) => l.length));
+  return Math.max(gridSize(q.width, q.height).w, Math.ceil(longest * 13 * 0.6 + 32));
+}
+
+const plainText = (s) => String(s).replace(/`/g, "");
+
+function buildPixelView({ width, height, pixels, varName = "", tokens = null, diff = [], notes = {}, animate = false, withCode = true, maxSize = null }) {
   const n = width * height;
+  const size = gridSize(width, height);
   const view = el("div", "pixel-view");
-  if (compact) view.style.maxWidth = `${Math.min(260, viewWidth(width, height))}px`;
 
   const grid = el("div", "px-grid");
   grid.dir = "ltr";
@@ -1180,19 +1185,24 @@ function buildPixelView({ width, height, pixels, varName, diff = [], notes = {},
   grid.setAttribute("aria-label", `תמונה בגודל ${width} על ${height} פיקסלים`);
   grid.style.gridTemplateColumns = `repeat(${width}, minmax(0, 1fr))`;
   grid.style.aspectRatio = `${width} / ${height}`;
+  grid.style.width = `${maxSize ? Math.min(maxSize, size.w) : size.w}px`;
 
   const diffSet = new Set(diff);
-  const inspector = compact ? null : buildInspector(varName, width);
   const cells = [];
   const toks = [];
   let active = -1;
+  function deactivate() {
+    if (active < 0) return;
+    if (cells[active]) cells[active].classList.remove("is-active");
+    if (toks[active]) toks[active].classList.remove("is-active");
+    active = -1;
+  }
   function activate(i) {
     if (active === i) return;
-    if (active >= 0) { cells[active].classList.remove("is-active"); if (toks[active]) toks[active].classList.remove("is-active"); }
+    deactivate();
     active = i;
-    cells[i].classList.add("is-active");
+    if (cells[i]) cells[i].classList.add("is-active");
     if (toks[i]) toks[i].classList.add("is-active");
-    if (inspector) inspector.show(i, pixels[i] || null, notes[String(i)], diffSet.has(i));
   }
 
   const step = animate ? Math.min(45, 560 / n) : 0;
@@ -1201,75 +1211,65 @@ function buildPixelView({ width, height, pixels, varName, diff = [], notes = {},
     const cell = el("div", "px");
     if (px) {
       cell.style.backgroundColor = `rgb(${px[0]}, ${px[1]}, ${px[2]})`;
-      cell.style.color = labelColor(px);
+      cell.style.color = labelColor(px);   // צבע המסגרת שמסמנת את הפיקסל בריחוף
     } else {
       cell.classList.add("px-missing");
     }
     if (diffSet.has(i)) cell.classList.add("px-diff");
+    const note = notes[String(i)];
+    if (note) cell.title = plainText(note);
     if (animate) { cell.classList.add("px-reveal"); cell.style.animationDelay = `${Math.round(i * step)}ms`; }
-    cell.append(el("span", "px-idx", String(i)), el("span", "px-tup", tupleText(px)));
-    if (!compact) {
-      if (n <= 400) cell.tabIndex = 0;
-      cell.addEventListener("mouseenter", () => activate(i));
-      cell.addEventListener("focus", () => activate(i));
-    }
+    if (withCode) cell.addEventListener("mouseenter", () => activate(i));
     cells.push(cell);
     grid.append(cell);
   }
+  grid.addEventListener("mouseleave", deactivate);
   view.append(grid);
-  if (inspector) view.append(inspector.el);
 
-  // התאמת גודל הכיתוב לגודל הפיקסל
-  let maxLen = 1;
-  for (let i = 0; i < n; i++) maxLen = Math.max(maxLen, tupleText(pixels[i] || null).length);
-  const fit = () => {
-    const cellW = grid.clientWidth / width;
-    if (!cellW) return;
-    const fs = Math.min(16, (cellW - 16) / (maxLen * 0.62));
-    grid.style.setProperty("--fs", `${fs.toFixed(2)}px`);
-    grid.style.setProperty("--idx-fs", `${Math.max(10, Math.min(13, cellW * 0.12)).toFixed(1)}px`);
-    grid.classList.toggle("hide-tuples", fs < 8);
-    grid.classList.toggle("hide-idx", cellW < 28);
-  };
-  if ("ResizeObserver" in window) new ResizeObserver(fit).observe(grid);
-  requestAnimationFrame(fit);
-
-  // הרשימה בפייתון, מקושרת לפיקסלים
-  if (code !== "none") {
+  if (withCode) {
+    const list = tokens || pixels.slice(0, n).map((p) => tupleText(p || null));
     const pre = el("pre", "list-code");
     pre.dir = "ltr";
-    pre.append(el("span", "tok-name", varName), document.createTextNode(" = [\n"));
-    for (let i = 0; i < n; i++) {
-      if (i % width === 0) pre.append(document.createTextNode("    "));
-      const tok = el("span", "tok-tuple", tupleText(pixels[i] || null));
-      tok.addEventListener("mouseenter", () => activate(i));
+    pre.append(el("span", "tok-name", varName), list.length ? " = [\n" : " = []");
+    list.forEach((text, i) => {
+      if (i % width === 0) pre.append("    ");
+      const tok = el("span", "tok", text);
+      if (diffSet.has(i) || i >= n) tok.classList.add("tok-diff");
+      const note = notes[String(i)];
+      if (note) { tok.classList.add("tok-bad"); tok.title = plainText(note); }
+      if (i < n) tok.addEventListener("mouseenter", () => activate(i));
       toks.push(tok);
       pre.append(tok);
-      if (i < n - 1) pre.append(document.createTextNode(i % width === width - 1 ? ",\n" : ", "));
-    }
-    pre.append(document.createTextNode("\n]"));
-    const longestLine = Math.max(...pre.textContent.split("\n").map((l) => l.length));
-    const fitCode = () => {
-      const avail = pre.clientWidth - 28;
+      if (i < list.length - 1) pre.append(i % width === width - 1 ? ",\n" : ", ");
+    });
+    if (list.length) pre.append("\n]");
+    pre.addEventListener("mouseleave", deactivate);
+    view.append(pre);
+
+    // התאמת גודל הגופן של הרשימה לרוחב הפנוי
+    const longest = Math.max(varName.length + 5, ...listLines(list, width).map((l) => l.length));
+    let observer = null;
+    const fit = () => {
+      if (!view.isConnected) { if (observer) observer.disconnect(); return; }
+      const host = view.closest(".stage-block") || view.parentElement;
+      const avail = host.clientWidth - 32;
       if (avail <= 0) return;
-      pre.style.fontSize = `${Math.max(11, Math.min(13.5, avail / (longestLine * 0.61))).toFixed(2)}px`;
+      pre.style.fontSize = `${Math.max(11, Math.min(13, avail / (longest * 0.61))).toFixed(2)}px`;
     };
-    if ("ResizeObserver" in window) new ResizeObserver(fitCode).observe(pre);
-    requestAnimationFrame(fitCode);
-    if (code === "details") {
-      const d = el("details", "list-details");
-      d.append(el("summary", null, "הרשימה בפייתון"), pre);
-      view.append(d);
-    } else {
-      (codeHost || view).append(el("h3", "list-title", "כך התמונה הנתונה שמורה בפייתון"), pre);
-    }
+    requestAnimationFrame(() => {
+      fit();
+      const host = view.closest(".stage-block");
+      if (host && "ResizeObserver" in window) { observer = new ResizeObserver(fit); observer.observe(host); }
+    });
   }
   return view;
 }
 
 function buildEmptyView(width, height, message) {
+  const size = gridSize(width, height);
   const view = el("div", "pixel-view");
   const box = el("div", "px-empty");
+  box.style.width = `${size.w}px`;
   box.style.aspectRatio = `${width} / ${height}`;
   box.append(el("p", null, message));
   view.append(box);
@@ -1300,8 +1300,7 @@ function buildNav() {
     const b = el("button", "qtab", String(i + 1));
     b.type = "button";
     const solved = !!state.solved[q.id];
-    b.setAttribute("aria-label", `שאלה ${i + 1}: ${q.title}${solved ? " (נפתרה)" : ""}`);
-    b.title = q.title;
+    b.setAttribute("aria-label", `שאלה ${i + 1}${solved ? " (נפתרה)" : ""}`);
     if (i === state.index) b.setAttribute("aria-current", "step");
     if (solved) b.classList.add("is-solved");
     b.addEventListener("click", () => goTo(i));
@@ -1317,6 +1316,15 @@ function updatePager() {
   next.classList.toggle("btn-primary", !!state.solved[q.id] && !next.disabled);
 }
 
+let splitObserver = null;
+function updateSplit() {
+  const q = QUESTIONS[state.index];
+  const box = $("stage-inner");
+  const cs = getComputedStyle(box);
+  const content = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  box.classList.toggle("is-split", content >= 2 * naturalWidth(q) + 28);
+}
+
 function resetResult() {
   const q = QUESTIONS[state.index];
   $("result-view").replaceChildren(buildEmptyView(q.width, q.height, "הריצו את הקוד כדי לראות כאן את התמונה החדשה."));
@@ -1324,49 +1332,34 @@ function resetResult() {
   renderOutput(null);
 }
 
-let splitObserver = null;
-function updateSplit() {
-  const q = QUESTIONS[state.index];
-  const box = $("stage-inner");
-  const cs = getComputedStyle(box);
-  const content = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-  box.classList.toggle("is-split", content >= 2 * viewWidth(q.width, q.height) + 28);
-}
-
 function renderQuestion() {
   const q = QUESTIONS[state.index];
-  $("q-count").textContent = `שאלה ${state.index + 1} מתוך ${QUESTIONS.length}`;
-  $("q-title").textContent = q.title;
+  const number = state.index + 1;
+  $("q-title").textContent = `שאלה ${number}`;
   $("q-goal").innerHTML = q.goal;
-  const reqs = $("q-reqs");
-  reqs.replaceChildren();
-  (q.requirements || []).forEach((r) => { const li = el("li"); li.innerHTML = r; reqs.append(li); });
-  reqs.hidden = !(q.requirements && q.requirements.length);
   const hint = $("q-hint");
   hint.open = false;
   hint.hidden = !q.hint;
   $("q-hint-body").innerHTML = q.hint || "";
 
-  $("stage-inner").style.setProperty("--col", `${viewWidth(q.width, q.height)}px`);
+  $("given-meta").innerHTML = `<span class="dim">${q.width}×${q.height}</span> פיקסלים`;
+  $("given-view").replaceChildren(buildPixelView({
+    width: q.width, height: q.height, pixels: q.pixels, varName: "pixels",
+  }));
+  resetResult();
   updateSplit();
   if (!splitObserver && "ResizeObserver" in window) {
     splitObserver = new ResizeObserver(updateSplit);
     splitObserver.observe($("stage-inner"));
   }
-  $("given-meta").textContent = `${q.width}×${q.height} פיקסלים`;
-  $("given-code").replaceChildren();
-  $("given-view").replaceChildren(buildPixelView({
-    width: q.width, height: q.height, pixels: q.pixels, varName: "pixels", code: "open", codeHost: $("given-code"),
-  }));
-  resetResult();
 
   editor.set(typeof state.codes[q.id] === "string" ? state.codes[q.id] : q.starter);
   editor.clearError();
   setStatus(null);
   buildNav();
   updatePager();
-  document.title = `שאלה ${state.index + 1}: ${q.title} | פיקסל אחר פיקסל`;
-  try { history.replaceState(null, "", `#q${state.index + 1}`); } catch (e) { /* file:// */ }
+  document.title = `שאלה ${number} | פיקסל אחר פיקסל`;
+  try { history.replaceState(null, "", `#q${number}`); } catch (e) { /* file:// */ }
   requestAnimationFrame(() => editor.refresh());
 }
 
@@ -1426,7 +1419,7 @@ function renderOutput(data) {
   images.forEach((img, k) => {
     const fig = el("figure");
     if (img.w * img.h <= 256) {
-      fig.append(buildPixelView({ width: img.w, height: img.h, pixels: img.pixels, varName: "", compact: true }));
+      fig.append(buildPixelView({ width: img.w, height: img.h, pixels: img.pixels, withCode: false, maxSize: 220 }));
     } else {
       fig.append(buildCanvas(img));
     }
@@ -1462,8 +1455,8 @@ function showResult(q, data) {
 
   if (data.render) {
     $("result-view").replaceChildren(buildPixelView({
-      width: q.width, height: q.height, pixels: data.render, varName: data.var,
-      diff: data.diff || [], notes: data.cellNotes || {}, animate: !reduceMotion, code: "details",
+      width: q.width, height: q.height, pixels: data.render, varName: data.var, tokens: data.reprs || null,
+      diff: data.diff || [], notes: data.cellNotes || {}, animate: !reduceMotion,
     }));
     $("result-meta").innerHTML = `המשתנה <code>${escapeHtml(data.var)}</code>`;
   } else {
@@ -1490,9 +1483,10 @@ function showResult(q, data) {
     }
     case "wrong": {
       const parts = [...problems];
-      const diffCount = (data.diff || []).length;
+      const notes = data.cellNotes || {};
+      const diffCount = (data.diff || []).filter((i) => !notes[String(i)]).length;
       if (data.unchanged) parts.push("התמונה לא השתנתה. בדקו שאתם משנים את הפיקסלים הנכונים.");
-      else if (diffCount) parts.push(`${diffCount} מתוך ${n} פיקסלים שונים ממה שציפינו. הם מסומנים ב-✕ בתמונה שלכם.`);
+      else if (diffCount) parts.push(`${diffCount} מתוך ${n} פיקסלים שונים ממה שציפינו. הם מסומנים ב-✕ בתמונה ובאדום ברשימה.`);
       parts.push(...violations);
       setStatus("bad", "עדיין לא", parts);
       break;
