@@ -17,6 +17,10 @@
   --canvas-ink: #15171B;
   --canvas-ok: #EEF9F1;       /* רקע התמונות כשהתשובה נכונה */
   --canvas-bad: #FDF0F0;      /* רקע התמונות כשהתשובה לא נכונה */
+  --gold: #F5B800;            /* שאלות אתגר */
+  --gold-bg: #FFE9A8;
+  --gold-hover: #FFDD7A;
+  --gold-text: #7A5000;
   --ink: #15171B;
   --muted: #5F656F;
   --line: #15171B;
@@ -46,6 +50,10 @@
     --canvas-ink: #EEEFF1;
     --canvas-ok: #1E2D24;
     --canvas-bad: #342326;
+    --gold: #FFC94A;
+    --gold-bg: #4A3A10;
+    --gold-hover: #5C4914;
+    --gold-text: #FFC94A;
     --ink: #EEEFF1;
     --muted: #9CA1AA;
     --line: #EEEFF1;
@@ -78,7 +86,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 code { font-family: var(--mono); font-size: .88em; }
-.goal code, .reqs code, .hint code, .status code:not(.err-code), .insp-note code, .stage-meta code, .out-empty code {
+.goal code, .reqs code, .hint code, .status code:not(.err-code), .stage-meta code {
   direction: ltr;
   unicode-bidi: isolate;
   background: var(--code-bg);
@@ -117,7 +125,17 @@ button { font-family: inherit; }
 .brand-title { font-weight: 700; font-size: 19px; line-height: 1.2; }
 .brand-sub { font-size: 13.5px; color: var(--muted); line-height: 1.3; }
 
-.qnav { display: flex; gap: 6px; }
+.qnav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 0; }
+.qgroup { display: flex; align-items: center; gap: 6px; }
+.qnav-label {
+  display: flex; align-items: center;
+  height: 40px;
+  margin-inline-start: 8px;
+  padding-inline-start: 14px;
+  border-inline-start: 2px solid var(--line-soft);
+  font-size: 14px; font-weight: 700;
+  color: var(--gold-text);
+}
 .qtab {
   position: relative;
   width: 40px; height: 40px;
@@ -130,6 +148,9 @@ button { font-family: inherit; }
 }
 .qtab:hover { background: var(--code-bg); }
 .qtab[aria-current="step"] { background: var(--ink); color: var(--paper); }
+.qtab.is-challenge { background: var(--gold-bg); }
+.qtab.is-challenge:hover { background: var(--gold-hover); }
+.qtab.is-challenge[aria-current="step"] { background: var(--ink); color: var(--gold); }
 .qtab.is-solved::after {
   content: "";
   position: absolute;
@@ -160,6 +181,47 @@ button { font-family: inherit; }
 .stage { background: var(--canvas); color: var(--canvas-ink); transition: background-color .45s ease; }
 .stage[data-verdict="ok"]  { background: var(--canvas-ok); }
 .stage[data-verdict="bad"] { background: var(--canvas-bad); }
+/* הודעה אחרי 5 השאלות הראשונות */
+.milestone {
+  width: min(460px, calc(100vw - 32px));
+  padding: 28px 32px 30px;
+  border: 2px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  text-align: center;
+}
+.milestone::backdrop { background: rgba(21, 23, 27, .5); }
+.ms-track { display: flex; justify-content: center; gap: 6px; }
+.ms-track i { width: 22px; height: 22px; border: 2px solid var(--line); background: var(--ok); }
+.ms-track i.is-challenge { background: var(--gold-bg); }
+.ms-track i.is-gap { width: 10px; border: 0; background: none; }
+.milestone h2 { margin: 18px 0 2px; font-size: 32px; line-height: 1.2; }
+.milestone p { margin: 0 0 22px; font-size: 19px; }
+.ms-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; }
+
+/* מסך הסיום */
+.finale {
+  position: fixed; inset: 0;
+  width: 100vw; height: 100vh; height: 100dvh;
+  max-width: none; max-height: none;
+  margin: 0; padding: 0; border: 0;
+  background: var(--canvas-ok);
+  color: var(--ink);
+}
+.finale::backdrop { background: var(--canvas-ok); }
+.finale-inner {
+  min-height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 22px;
+  padding: 40px 20px;
+  text-align: center;
+}
+.trophy { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 3px; width: min(280px, 64vw); }
+.trophy i { display: block; aspect-ratio: 1; }
+.trophy i.on { animation: px-in .22s ease-out both; }
+.finale h2 { margin: 8px 0 0; font-size: clamp(34px, 5.5vw, 60px); line-height: 1.1; font-weight: 700; }
+.finale p { margin: 0 0 8px; font-size: 19px; color: var(--muted); }
+
 .confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
 .stage-inner {
   max-width: 1100px;
@@ -385,23 +447,6 @@ button { font-family: inherit; }
 }
 .status-body .btn { margin-top: 8px; min-height: 42px; padding: 8px 16px; font-size: 15px; }
 
-.output { margin-top: 24px; }
-.output h3 { margin: 0 0 6px; font-size: 15px; font-weight: 700; }
-.out-empty { margin: 0; color: var(--muted); font-size: 15px; }
-#stdout {
-  margin: 0;
-  padding: 10px 12px;
-  max-height: 220px; overflow: auto;
-  white-space: pre-wrap; word-break: break-word;
-  text-align: left;
-  font: 14px/1.6 var(--mono);
-  background: var(--code-bg);
-  border: 2px solid var(--line-soft);
-}
-.shown { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; }
-.shown figure { margin: 0; width: min(100%, 260px); }
-.shown figcaption { margin-top: 6px; font-size: 14px; color: var(--muted); }
-.shown canvas { display: block; width: 100%; image-rendering: pixelated; border: 2px solid var(--grid-line); }
 
 .pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 32px; padding-top: 20px; border-top: 2px solid var(--line-soft); }
 
@@ -416,10 +461,13 @@ button { font-family: inherit; }
 }
 @media (max-width: 560px) {
   .brand-sub { display: none; }
+  .qnav-label { margin-inline-start: 0; padding-inline-start: 0; border-inline-start: 0; }
+  .qnav .qgroup + .qgroup { margin-inline-start: 0; }
   .engine { margin-inline-start: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .stage { transition: none; }
+  .trophy i.on { animation: none !important; }
   .px-reveal, .engine-dot { animation: none !important; }
 }
 </style>
@@ -468,13 +516,6 @@ button { font-family: inherit; }
 
       <div class="status" id="status" aria-live="polite"></div>
 
-      <div class="output">
-        <h3>פלט</h3>
-        <p class="out-empty" id="stdout-empty">כאן יופיע מה שתדפיסו עם <code>print</code>.</p>
-        <pre id="stdout" dir="ltr" hidden></pre>
-        <div class="shown" id="shown-images"></div>
-      </div>
-
       <nav class="pager" aria-label="מעבר בין שאלות">
         <button type="button" class="btn" id="prev-btn">השאלה הקודמת</button>
         <button type="button" class="btn" id="next-btn">השאלה הבאה</button>
@@ -506,6 +547,25 @@ button { font-family: inherit; }
     </div>
   </section>
 </main>
+
+<dialog class="milestone" id="milestone" aria-labelledby="milestone-title">
+  <div class="ms-track" id="ms-track" aria-hidden="true"></div>
+  <h2 id="milestone-title">כל הכבוד!</h2>
+  <p>המשיכו לתרגילי האתגר</p>
+  <div class="ms-actions">
+    <button type="button" class="btn btn-primary" id="ms-go">לתרגילי האתגר</button>
+    <button type="button" class="btn" id="ms-close">סגירה</button>
+  </div>
+</dialog>
+
+<dialog class="finale" id="finale" aria-labelledby="finale-title">
+  <div class="finale-inner">
+    <div class="trophy" id="trophy" dir="ltr" aria-hidden="true"></div>
+    <h2 id="finale-title">כל הכבוד! אלופי הפיקסלים</h2>
+    <p>פתרתם את כל השאלות, כולל תרגילי האתגר.</p>
+    <button type="button" class="btn btn-primary" id="finale-close">חזרה לשאלות</button>
+  </div>
+</dialog>
 
 <!-- ============================================================
      קוד הפייתון שמריץ את הקוד של התלמידים ובודק אותו.
@@ -877,6 +937,7 @@ const STORAGE_KEY = "pixel-by-pixel:v2";   // שמירת הקוד וההתקדמ
    rules        noLoops: true    אסור להשתמש בלולאה.
                 requireFor: true חובה להשתמש בלולאת for.
    hint         רמז (HTML). אפשר להשמיט.
+   challenge    true לשאלת אתגר: מסומנת בזהב בסרגל העליון, והכותרת שלה "שאלה N: אתגר".
 
    בקוד של התלמידים כבר מוגדרים: pixels, WIDTH, HEIGHT,
    ו-show_image(pixel_list, (w, h)) להצגת תמונה נוספת בחלון הפלט.
@@ -975,6 +1036,92 @@ const QUESTIONS = [
     resultVars: ["dark_pink"],
     rules: { requireFor: true },
     hint: `חילוק שלמים <code>//</code> נותן מספר שלם, למשל <code>255 // 2</code> הוא <code>127</code>. צרו טאפל חדש שבו כל אחד משלושת הערכים מחולק ב-2.`,
+  },
+
+  /* ---------------- תרגילי אתגר (challenge: true) ---------------- */
+  {
+    id: "c6-grayscale",
+    challenge: true,
+    width: 3,
+    height: 3,
+    pixels: [
+      [0, 0, 0],       [0, 0, 0],       [0, 0, 0],
+      [255, 0, 0],     [255, 0, 0],     [255, 0, 0],
+      [255, 200, 0],   [255, 200, 0],   [255, 200, 0],
+    ],
+    goal: `
+      <p>נתונה תמונה בגודל <span class="dim">3×3</span> פיקסלים, השמורה ברשימה <code>pixels</code>.</p>
+      <p>צרו תמונה חדשה בגווני אפור. לכל פיקסל מחשבים את ממוצע הצבעים <code>(r + g + b) // 3</code> ומגדירים את הטאפל החדש כ-<code>(avg, avg, avg)</code>.</p>
+      <p>כתבו לולאת <code>for</code> שעוברת על הרשימה <code>pixels</code>, ובונה רשימה חדשה בשם <code>gray_pixels</code>.</p>`,
+    starter: "gray_pixels = []\n",
+    solution: "gray_pixels = []\nfor r, g, b in pixels:\n    avg = (r + g + b) // 3\n    gray_pixels.append((avg, avg, avg))\n",
+    resultVars: ["gray_pixels"],
+    rules: { requireFor: true },
+    hint: `בתוך הלולאה חשבו קודם את <code>avg</code> ושמרו אותו במשתנה. אחר כך הוסיפו לרשימה טאפל שבו שלושת הערכים הם <code>avg</code>.`,
+  },
+  {
+    id: "c7-reverse",
+    challenge: true,
+    width: 4,
+    height: 4,
+    pixels: [
+      [0, 255, 0], [0, 240, 0], [0, 225, 0], [0, 210, 0],
+      [0, 195, 0], [0, 180, 0], [0, 165, 0], [0, 150, 0],
+      [0, 135, 0], [0, 120, 0], [0, 105, 0], [0, 90, 0],
+      [0, 75, 0],  [0, 60, 0],  [0, 45, 0],  [0, 30, 0],
+    ],
+    goal: `
+      <p>נתונה תמונה בגודל <span class="dim">4×4</span> פיקסלים, השמורה ברשימה <code>pixels</code>.</p>
+      <p>צרו תמונה חדשה שבה סדר הפיקסלים הפוך לחלוטין: הפיקסל הכהה ביותר יהפוך לראשון, והבהיר ביותר לאחרון.</p>
+      <p>כתבו קוד שבונה רשימה חדשה בשם <code>reversed_pixels</code> המכילה את הפיקסלים בסדר הפוך.</p>`,
+    starter: "reversed_pixels = []\n",
+    // גם reversed_pixels = pixels[::-1] מתקבל, כי אין כאן דרישה ללולאה
+    solution: "reversed_pixels = []\nfor pixel in pixels:\n    reversed_pixels.insert(0, pixel)\n",
+    resultVars: ["reversed_pixels"],
+    rules: {},
+    hint: `הפעולה <code>insert(0, x)</code> מכניסה את <code>x</code> לתחילת הרשימה. מה יקרה אם תכניסו כל פיקסל לתחילת <code>reversed_pixels</code>?`,
+  },
+  {
+    id: "c8-negative",
+    challenge: true,
+    width: 4,
+    height: 4,
+    pixels: [
+      [100, 0, 200], [100, 0, 200], [100, 0, 200], [100, 0, 200],
+      [100, 0, 200], [255, 255, 0], [255, 255, 0], [100, 0, 200],
+      [100, 0, 200], [255, 255, 0], [255, 255, 0], [100, 0, 200],
+      [100, 0, 200], [100, 0, 200], [100, 0, 200], [100, 0, 200],
+    ],
+    goal: `
+      <p>נתונה תמונה בגודל <span class="dim">4×4</span> פיקסלים, השמורה ברשימה <code>pixels</code>.</p>
+      <p>צרו תמונה חדשה המייצגת את תמונת הנגטיב (היפוך צבעים). כל ערוץ צבע X מוחלף בערך ההפוך שלו: <code>255 - X</code>.</p>
+      <p>כתבו לולאת <code>for</code> שעוברת על הרשימה <code>pixels</code>, ובונה רשימה חדשה בשם <code>negative_pixels</code>.</p>`,
+    starter: "negative_pixels = []\n",
+    solution: "negative_pixels = []\nfor r, g, b in pixels:\n    new_pixel = (255 - r, 255 - g, 255 - b)\n    negative_pixels.append(new_pixel)\n",
+    resultVars: ["negative_pixels"],
+    rules: { requireFor: true },
+    hint: `מחשבים <code>255 - x</code> לכל אחד משלושת הערוצים. למשל, הערך 100 הופך ל-155, והערך 0 הופך ל-255.`,
+  },
+  {
+    id: "c9-black-white",
+    challenge: true,
+    width: 4,
+    height: 3,
+    pixels: [
+      [200, 150, 100], [30, 40, 50],   [255, 200, 220], [10, 10, 10],
+      [120, 130, 140], [240, 255, 0],  [0, 100, 200],   [180, 180, 180],
+      [50, 200, 50],   [100, 0, 0],    [220, 220, 100], [80, 90, 100],
+    ],
+    goal: `
+      <p>נתונה תמונה בגודל <span class="dim">4×3</span> פיקסלים, השמורה ברשימה <code>pixels</code>.</p>
+      <p>צרו תמונה חדשה בשחור-לבן מוחלט. מחשבים לכל פיקסל את הממוצע <code>avg = (r + g + b) // 3</code>.</p>
+      <p>אם הממוצע גדול מ-128, הפיקסל הופך ללבן <code>(255, 255, 255)</code>. אחרת, הפיקסל הופך לשחור <code>(0, 0, 0)</code>.</p>
+      <p>כתבו לולאת <code>for</code> שעוברת על הרשימה <code>pixels</code>, ובונה רשימה חדשה בשם <code>bw_pixels</code>.</p>`,
+    starter: "bw_pixels = []\n",
+    solution: "bw_pixels = []\nfor r, g, b in pixels:\n    avg = (r + g + b) // 3\n    if avg > 128:\n        bw_pixels.append((255, 255, 255))\n    else:\n        bw_pixels.append((0, 0, 0))\n",
+    resultVars: ["bw_pixels"],
+    rules: { requireFor: true },
+    hint: `חשבו את <code>avg</code> כמו בשאלה 6, ואז השתמשו ב-<code>if</code> וב-<code>else</code> כדי לבחור בין לבן לשחור.`,
   },
 ];
 
@@ -1296,35 +1443,29 @@ function buildEmptyView(width, height, message) {
   return view;
 }
 
-function buildCanvas(img) {
-  const canvas = document.createElement("canvas");
-  canvas.width = img.w;
-  canvas.height = img.h;
-  const ctx = canvas.getContext("2d");
-  const data = ctx.createImageData(img.w, img.h);
-  img.pixels.forEach((p, i) => {
-    const o = i * 4;
-    if (p) { data.data[o] = p[0]; data.data[o + 1] = p[1]; data.data[o + 2] = p[2]; data.data[o + 3] = 255; }
-  });
-  ctx.putImageData(data, 0, 0);
-  return canvas;
-}
-
 /* ================================================================
    תצוגת שאלה
    ================================================================ */
 function buildNav() {
   const nav = $("qnav");
   nav.replaceChildren();
+  let group = el("div", "qgroup");
+  nav.append(group);
   QUESTIONS.forEach((q, i) => {
+    if (q.challenge && !(i > 0 && QUESTIONS[i - 1].challenge)) {
+      group = el("div", "qgroup");
+      group.append(el("span", "qnav-label", "אתגר"));
+      nav.append(group);
+    }
     const b = el("button", "qtab", String(i + 1));
     b.type = "button";
+    if (q.challenge) b.classList.add("is-challenge");
     const solved = !!state.solved[q.id];
-    b.setAttribute("aria-label", `שאלה ${i + 1}${solved ? " (נפתרה)" : ""}`);
+    b.setAttribute("aria-label", `${questionTitle(i)}${solved ? " (נפתרה)" : ""}`);
     if (i === state.index) b.setAttribute("aria-current", "step");
     if (solved) b.classList.add("is-solved");
     b.addEventListener("click", () => goTo(i));
-    nav.append(b);
+    group.append(b);
   });
 }
 
@@ -1339,6 +1480,8 @@ function updatePager() {
 let splitObserver = null;
 let givenObserver = null;
 
+const questionTitle = (i) => `שאלה ${i + 1}${QUESTIONS[i].challenge ? ": אתגר" : ""}`;
+
 /* צבע הרקע של אזור התמונות: "ok" ירוק בהיר, "bad" אדום בהיר, "" אפור */
 function setStageVerdict(v) {
   const stage = document.querySelector(".stage");
@@ -1346,12 +1489,12 @@ function setStageVerdict(v) {
 }
 
 /* קונפטי של פיקסלים מרובעים, בצבעים של התמונה שנוצרה */
-function confetti(colors) {
+function confetti(colors, host = document.body) {
   if (reduceMotion) return;
   const vw = window.innerWidth, vh = window.innerHeight;
   const r = document.querySelector(".stage").getBoundingClientRect();
   const top = Math.max(0, r.top), bottom = Math.min(vh, r.bottom);
-  const visible = bottom - top > 80;
+  const visible = host === document.body && bottom - top > 80;
   const cx = visible ? r.left + r.width / 2 : vw / 2;
   const cy = visible ? top + (bottom - top) * 0.4 : vh * 0.4;
   const spread = visible ? r.width : vw;
@@ -1361,7 +1504,7 @@ function confetti(colors) {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   canvas.width = vw * dpr;
   canvas.height = vh * dpr;
-  document.body.append(canvas);
+  host.append(canvas);
   const ctx = canvas.getContext("2d");
   ctx.scale(dpr, dpr);
 
@@ -1415,13 +1558,12 @@ function resetResult() {
   const q = QUESTIONS[state.index];
   $("result-view").replaceChildren(buildEmptyView(q.width, q.height, "הריצו את הקוד כדי לראות כאן את התמונה החדשה."));
   $("result-meta").textContent = "";
-  renderOutput(null);
 }
 
 function renderQuestion() {
   const q = QUESTIONS[state.index];
   const number = state.index + 1;
-  $("q-title").textContent = `שאלה ${number}`;
+  $("q-title").textContent = questionTitle(state.index);
   $("q-goal").innerHTML = q.goal;
   const hint = $("q-hint");
   hint.open = false;
@@ -1448,7 +1590,7 @@ function renderQuestion() {
   setStatus(null);
   buildNav();
   updatePager();
-  document.title = `שאלה ${number} | פיקסל אחר פיקסל`;
+  document.title = `${questionTitle(state.index)} | פיקסל אחר פיקסל`;
   try { history.replaceState(null, "", `#q${number}`); } catch (e) { /* file:// */ }
   requestAnimationFrame(() => editor.refresh());
 }
@@ -1497,27 +1639,6 @@ function setStatus(kind, verdict, parts = [], action = null) {
   box.append(wrap);
 }
 
-function renderOutput(data) {
-  const text = data && data.stdout ? data.stdout : "";
-  const images = (data && data.images) || [];
-  const pre = $("stdout");
-  pre.textContent = text;
-  pre.hidden = !text;
-  $("stdout-empty").hidden = !!text || images.length > 0;
-  const shown = $("shown-images");
-  shown.replaceChildren();
-  images.forEach((img, k) => {
-    const fig = el("figure");
-    if (img.w * img.h <= 256) {
-      fig.append(buildPixelView({ width: img.w, height: img.h, pixels: img.pixels, withCode: false, maxSize: 220 }));
-    } else {
-      fig.append(buildCanvas(img));
-    }
-    fig.append(el("figcaption", null, `${img.label} ${k + 1}: ${img.w}×${img.h}`));
-    shown.append(fig);
-  });
-}
-
 function emptyMessage(status) {
   switch (status) {
     case "syntax":
@@ -1541,7 +1662,6 @@ function nextButton() {
 function showResult(q, data, code) {
   const n = q.width * q.height;
   editor.clearError();
-  renderOutput(data);
 
   // הרצה של הקוד ההתחלתי כמו שהוא (למשל בשאלה 1, שבה מבקשים להריץ אותו) אינה נחשבת טעות
   const onlyStarter = typeof code === "string" && code.trim() === q.starter.trim() && data.status === "wrong";
@@ -1566,17 +1686,19 @@ function showResult(q, data, code) {
 
   switch (data.status) {
     case "correct": {
+      const regular = QUESTIONS.filter((x) => !x.challenge);
+      const allSolved = (list) => list.every((x) => state.solved[x.id]);
+      const hadAll = allSolved(QUESTIONS);
+      const hadRegular = allSolved(regular);
       state.solved[q.id] = true;
       persist();
       buildNav();
       updatePager();
-      const last = state.index === QUESTIONS.length - 1;
-      setStatus("ok", "נכון", [
-        "כל הכבוד. התמונה שיצרתם זהה לתמונה המבוקשת.",
-        ...(last ? ["סיימתם את כל השאלות."] : []),
-      ], nextButton());
+      setStatus("ok", "נכון", ["כל הכבוד. התמונה שיצרתם זהה לתמונה המבוקשת."], nextButton());
       const colors = [...new Set((data.render || []).filter(Boolean).map((p) => `rgb(${p[0]}, ${p[1]}, ${p[2]})`))];
-      requestAnimationFrame(() => confetti(colors));
+      if (!hadAll && allSolved(QUESTIONS)) setTimeout(() => showFinale(colors), 900);
+      else if (!hadRegular && allSolved(regular) && regular.length < QUESTIONS.length) setTimeout(() => showMilestone(colors), 900);
+      else requestAnimationFrame(() => confetti(colors));
       break;
     }
     case "wrong": {
@@ -1673,6 +1795,76 @@ async function run() {
   setRunButton(false);
   showResult(q, data, code);
 }
+
+/* ================================================================
+   הודעת "המשיכו לאתגר" ומסך הסיום
+   ================================================================ */
+function openDialog(d) {
+  if (typeof d.showModal === "function") { if (!d.open) d.showModal(); }
+  else d.setAttribute("open", "");
+}
+function closeDialog(d) {
+  if (typeof d.close === "function") d.close(); else d.removeAttribute("open");
+}
+
+function showMilestone(colors) {
+  const track = $("ms-track");
+  track.replaceChildren();
+  QUESTIONS.forEach((q, i) => {
+    if (q.challenge && !(i > 0 && QUESTIONS[i - 1].challenge)) track.append(el("i", "is-gap"));
+    track.append(el("i", q.challenge ? "is-challenge" : null));
+  });
+  const d = $("milestone");
+  openDialog(d);
+  $("ms-go").focus();
+  confetti(colors, d);
+}
+$("ms-go").addEventListener("click", () => {
+  closeDialog($("milestone"));
+  const firstOpen = QUESTIONS.findIndex((q) => q.challenge && !state.solved[q.id]);
+  const target = firstOpen >= 0 ? firstOpen : QUESTIONS.findIndex((q) => q.challenge);
+  if (target >= 0) goTo(target);
+});
+$("ms-close").addEventListener("click", () => closeDialog($("milestone")));
+
+/* גביע מפיקסלים: כל תו הוא פיקסל, נקודה היא פיקסל שקוף */
+const TROPHY = [
+  "..GGGGGGGGG..",
+  "GGGLGGGGGGDGG",
+  "G.GLGGGGGGD.G",
+  "G.GLGGGGGGD.G",
+  ".GGLGGGGGGDG.",
+  "..GLGGGGGGD..",
+  "...GLGGGGD...",
+  "....GGGGD....",
+  ".....GGD.....",
+  ".....GGD.....",
+  "....GGGGD....",
+  "..BBBBBBBBB..",
+  "..BBBBBBBBB..",
+];
+const TROPHY_COLORS = { G: "rgb(255, 196, 0)", L: "rgb(255, 236, 140)", D: "rgb(214, 140, 0)", B: "rgb(110, 62, 24)" };
+
+function showFinale(colors) {
+  const trophy = $("trophy");
+  trophy.replaceChildren();
+  TROPHY.forEach((row, y) => {
+    [...row].forEach((ch, x) => {
+      const px = el("i");
+      if (TROPHY_COLORS[ch]) {
+        px.className = "on";
+        px.style.background = TROPHY_COLORS[ch];
+        px.style.animationDelay = `${y * 70 + x * 8}ms`;
+      }
+      trophy.append(px);
+    });
+  });
+  const d = $("finale");
+  openDialog(d);
+  $("finale-close").focus();
+  setTimeout(() => confetti([...Object.values(TROPHY_COLORS), ...colors], d), 500);
+}
+$("finale-close").addEventListener("click", () => closeDialog($("finale")));
 
 /* ================================================================
    כפתורים
