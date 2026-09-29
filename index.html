@@ -15,6 +15,8 @@
   --paper: #FFFFFF;
   --canvas: #B7BBC1;          /* רקע אפור ניטרלי, כמו בתוכנות עריכת תמונה */
   --canvas-ink: #15171B;
+  --canvas-ok: #EEF9F1;       /* רקע התמונות כשהתשובה נכונה */
+  --canvas-bad: #FDF0F0;      /* רקע התמונות כשהתשובה לא נכונה */
   --ink: #15171B;
   --muted: #5F656F;
   --line: #15171B;
@@ -42,6 +44,8 @@
     --paper: #1A1C20;
     --canvas: #3A3D43;
     --canvas-ink: #EEEFF1;
+    --canvas-ok: #1E2D24;
+    --canvas-bad: #342326;
     --ink: #EEEFF1;
     --muted: #9CA1AA;
     --line: #EEEFF1;
@@ -153,7 +157,10 @@ button { font-family: inherit; }
 /* צד ימין: השאלה והקוד. צד שמאל: התמונות */
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .task { background: var(--paper); border-inline-end: 2px solid var(--line); }
-.stage { background: var(--canvas); color: var(--canvas-ink); }
+.stage { background: var(--canvas); color: var(--canvas-ink); transition: background-color .45s ease; }
+.stage[data-verdict="ok"]  { background: var(--canvas-ok); }
+.stage[data-verdict="bad"] { background: var(--canvas-bad); }
+.confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
 .stage-inner {
   max-width: 1100px;
   margin: 0 auto;
@@ -190,6 +197,7 @@ button { font-family: inherit; }
 .px-grid {
   position: relative;
   z-index: 1;
+  align-self: stretch;
   display: grid;
   gap: 2px;
   max-width: 100%;
@@ -216,6 +224,7 @@ button { font-family: inherit; }
 @keyframes px-in { from { opacity: 0; transform: scale(.55); } to { opacity: 1; transform: none; } }
 
 .px-empty {
+  width: var(--view-w, 260px);
   max-width: 100%;
   display: flex; align-items: center; justify-content: center;
   padding: 12px;
@@ -248,6 +257,8 @@ button { font-family: inherit; }
   color: var(--ink);
   border: 2px solid var(--grid-line);
 }
+/* התמונה שלכם לפחות ברוחב התמונה הנתונה, כדי שיהיה קל להשוות */
+#result-view .list-code { min-width: var(--view-w, 0px); }
 .tok-name { font-weight: 600; }
 .tok { padding: 1px 0; }
 .tok-diff { color: var(--bad); font-weight: 600; }
@@ -408,6 +419,7 @@ button { font-family: inherit; }
   .engine { margin-inline-start: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .stage { transition: none; }
   .px-reveal, .engine-dot { animation: none !important; }
 }
 </style>
@@ -602,6 +614,8 @@ def _hint(name, message):
     if name == "NameError":
         found = re.search(r"name '([^']+)'", message or "")
         n = found.group(1) if found else "?"
+        if n == "_":
+            return "בקוד עדיין יש `_`. במקום כל `_` כתבו את הערך המתאים."
         return f"השם `{n}` לא מוגדר. בדקו שאין שגיאת כתיב, ושהמשתנה הוגדר לפני השימוש בו."
     if name == "IndexError":
         return "ניסיתם לגשת למקום שלא קיים ברשימה. האינדקס הראשון הוא `0`, והאחרון הוא `len(pixels) - 1`."
@@ -842,7 +856,7 @@ self.onmessage = async (event) => {
    ================================================================ */
 const PYODIDE_URL = "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/";
 const RUN_TIMEOUT_MS = 6000;               // אחרי כמה זמן לעצור קוד שלא מסתיים
-const STORAGE_KEY = "pixel-by-pixel:v1";   // שמירת הקוד וההתקדמות בדפדפן של התלמיד
+const STORAGE_KEY = "pixel-by-pixel:v2";   // שמירת הקוד וההתקדמות בדפדפן של התלמיד
 
 /* ================================================================
    השאלות
@@ -879,11 +893,11 @@ const QUESTIONS = [
     ],
     goal: `
       <p>נתונה תמונה בגודל <span class="dim">2×2</span> פיקסלים, השמורה ברשימה <code>pixels</code>.</p>
-      <p>צרו תמונה חדשה שבה הפיקסל הראשון והפיקסל האחרון הופכים לשחור. שנו את הפיקסלים ברשימה, ללא לולאה.</p>`,
+      <p>נתונה שורת קוד שהופכת את הפיקסל הראשון בתמונה לשחור, הריצו אותה. הוסיפו שורת קוד נוספת שהופכת את הפיקסל האחרון לשחור.</p>`,
     starter: "pixels[0] = (0,0,0)\n",
     solution: "pixels[0] = (0,0,0)\npixels[3] = (0,0,0)\n",
     resultVars: ["pixels"],
-    rules: { noLoops: true },
+    rules: {},
     hint: `ברשימה של 4 פיקסלים האינדקסים הם <code>0</code>, <code>1</code>, <code>2</code>, <code>3</code>. מה האינדקס של הפיקסל האחרון?`,
   },
   {
@@ -896,13 +910,12 @@ const QUESTIONS = [
     ],
     goal: `
       <p>נתונה תמונה בגודל <span class="dim">3×2</span> פיקסלים, השמורה ברשימה <code>pixels</code>.</p>
-      <p>צרו תמונה חדשה שבה כל הפיקסלים הופכים לאדום מלא <code>(255, 0, 0)</code>.</p>
-      <p>כתבו לולאת <code>for</code> שעוברת על הרשימה <code>pixels</code>, ובונה רשימה חדשה בשם <code>red_pixels</code>.</p>`,
-    starter: "red_pixels = []\n",
+      <p>השלימו את הקוד כדי שכל פיקסל ברשימה החדשה <code>red_pixels</code> יהיה אדום <code>(255, 0, 0)</code>.</p>`,
+    starter: "red_pixels = []\nfor r,g,b in pixels:\n    red_pixels.append((_, _, _))\n",
     solution: "red_pixels = []\nfor r, g, b in pixels:\n    red_pixels.append((255, 0, 0))\n",
     resultVars: ["red_pixels"],
     rules: { requireFor: true },
-    hint: `הלולאה רצה פעם אחת על כל פיקסל. בכל סיבוב הוסיפו ל-<code>red_pixels</code> את הטאפל <code>(255, 0, 0)</code>, בלי קשר לצבע המקורי של הפיקסל.`,
+    hint: `כל <code>_</code> הוא מקום לערך אחד: R, אחר כך G ואחר כך B. באדום מלא R הוא 255, ו-G ו-B הם 0.`,
   },
   {
     id: "q3-no-blue",
@@ -916,7 +929,8 @@ const QUESTIONS = [
     goal: `
       <p>נתונה תמונה בגודל <span class="dim">3×3</span> פיקסלים, השמורה ברשימה <code>pixels</code>.</p>
       <p>צרו תמונה חדשה ללא ערוץ הצבע הכחול. כתבו לולאת <code>for</code> שעוברת על הרשימה <code>pixels</code>, ובונה רשימה חדשה בשם <code>no_blue</code>.</p>
-      <p>ברשימה החדשה, הערכים R ו-G יישארו כפי שהיו במקור, אך הערך B יהפוך ל-0.</p>`,
+      <p>ברשימה החדשה, הערכים R ו-G יישארו כפי שהיו במקור, אך הערך B יהפוך ל-0.</p>
+      <p>היעזרו בקוד שכתבתם בשאלה הקודמת.</p>`,
     starter: "no_blue = []\n",
     solution: "no_blue = []\nfor r, g, b in pixels:\n    new_pixel = (r, g, 0)\n    no_blue.append(new_pixel)\n",
     resultVars: ["no_blue"],
@@ -1148,8 +1162,14 @@ let saveTimer = null;
 const editor = createEditor($("editor"), () => run(), (value) => {
   const q = QUESTIONS[state.index];
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => { state.codes[q.id] = value; persist(); }, 300);
+  saveTimer = setTimeout(() => { storeCode(q, value); persist(); }, 300);
 });
+
+/* קוד שזהה לקוד ההתחלתי לא נשמר, כך ששינוי של הקוד ההתחלתי יגיע לכולם */
+function storeCode(q, value) {
+  if (value.trim() === q.starter.trim()) delete state.codes[q.id];
+  else state.codes[q.id] = value;
+}
 
 /* ================================================================
    ציור תמונה כרשת של פיקסלים, עם הרשימה בפייתון מחוברת מתחתיה
@@ -1166,10 +1186,10 @@ function listLines(tokens, width) {
   return lines;
 }
 
-/* רוחב משוער של תמונה יחד עם הרשימה שלה, כדי להחליט אם יש מקום לשתי תמונות זו לצד זו */
+/* רוחב משוער של המלבן של הרשימה (וכך גם של התמונה), כדי להחליט אם יש מקום לשתי תמונות זו לצד זו */
 function naturalWidth(q) {
   const longest = Math.max(0, ...listLines(q.pixels.map(tupleText), q.width).map((l) => l.length));
-  return Math.max(gridSize(q.width, q.height).w, Math.ceil(longest * 13 * 0.6 + 32));
+  return Math.ceil(longest * 13 * 0.6 + 32);
 }
 
 const plainText = (s) => String(s).replace(/`/g, "");
@@ -1185,7 +1205,8 @@ function buildPixelView({ width, height, pixels, varName = "", tokens = null, di
   grid.setAttribute("aria-label", `תמונה בגודל ${width} על ${height} פיקסלים`);
   grid.style.gridTemplateColumns = `repeat(${width}, minmax(0, 1fr))`;
   grid.style.aspectRatio = `${width} / ${height}`;
-  grid.style.width = `${maxSize ? Math.min(maxSize, size.w) : size.w}px`;
+  // עם רשימה: התמונה ברוחב המלבן של הרשימה. בלי רשימה (תמונות בחלון הפלט): רוחב קבוע
+  grid.style.width = withCode ? "100%" : `${maxSize ? Math.min(maxSize, size.w) : size.w}px`;
 
   const diffSet = new Set(diff);
   const cells = [];
@@ -1265,11 +1286,10 @@ function buildPixelView({ width, height, pixels, varName = "", tokens = null, di
   return view;
 }
 
+/* מקום ריק לתמונה החדשה, באותו רוחב כמו התמונה הנתונה */
 function buildEmptyView(width, height, message) {
-  const size = gridSize(width, height);
   const view = el("div", "pixel-view");
   const box = el("div", "px-empty");
-  box.style.width = `${size.w}px`;
   box.style.aspectRatio = `${width} / ${height}`;
   box.append(el("p", null, message));
   view.append(box);
@@ -1317,6 +1337,72 @@ function updatePager() {
 }
 
 let splitObserver = null;
+let givenObserver = null;
+
+/* צבע הרקע של אזור התמונות: "ok" ירוק בהיר, "bad" אדום בהיר, "" אפור */
+function setStageVerdict(v) {
+  const stage = document.querySelector(".stage");
+  if (v) stage.dataset.verdict = v; else delete stage.dataset.verdict;
+}
+
+/* קונפטי של פיקסלים מרובעים, בצבעים של התמונה שנוצרה */
+function confetti(colors) {
+  if (reduceMotion) return;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const r = document.querySelector(".stage").getBoundingClientRect();
+  const top = Math.max(0, r.top), bottom = Math.min(vh, r.bottom);
+  const visible = bottom - top > 80;
+  const cx = visible ? r.left + r.width / 2 : vw / 2;
+  const cy = visible ? top + (bottom - top) * 0.4 : vh * 0.4;
+  const spread = visible ? r.width : vw;
+
+  const canvas = document.createElement("canvas");
+  canvas.className = "confetti";
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = vw * dpr;
+  canvas.height = vh * dpr;
+  document.body.append(canvas);
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+
+  const palette = ["#FF0000", "#00FF00", "#0000FF", "#FFFFFF", ...colors];
+  const parts = Array.from({ length: 150 }, () => ({
+    x: cx + (Math.random() - 0.5) * spread * 0.35,
+    y: cy + (Math.random() - 0.5) * 40,
+    vx: (Math.random() - 0.5) * spread * 0.035,
+    vy: -(7 + Math.random() * 10),
+    size: 7 + Math.random() * 7,
+    rot: Math.random() * Math.PI,
+    vr: (Math.random() - 0.5) * 0.3,
+    color: palette[Math.floor(Math.random() * palette.length)],
+  }));
+  const start = performance.now();
+  const duration = 2600;
+  function frame(now) {
+    const t = now - start;
+    ctx.clearRect(0, 0, vw, vh);
+    ctx.globalAlpha = t < duration * 0.6 ? 1 : Math.max(0, 1 - (t - duration * 0.6) / (duration * 0.4));
+    for (const p of parts) {
+      p.vy += 0.34;
+      p.vx *= 0.985;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vr;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = "rgba(21, 23, 27, 0.55)";
+      ctx.strokeRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      ctx.restore();
+    }
+    if (t < duration) requestAnimationFrame(frame);
+    else canvas.remove();
+  }
+  requestAnimationFrame(frame);
+}
 function updateSplit() {
   const q = QUESTIONS[state.index];
   const box = $("stage-inner");
@@ -1343,9 +1429,13 @@ function renderQuestion() {
   $("q-hint-body").innerHTML = q.hint || "";
 
   $("given-meta").innerHTML = `<span class="dim">${q.width}×${q.height}</span> פיקסלים`;
-  $("given-view").replaceChildren(buildPixelView({
-    width: q.width, height: q.height, pixels: q.pixels, varName: "pixels",
-  }));
+  const givenView = buildPixelView({ width: q.width, height: q.height, pixels: q.pixels, varName: "pixels" });
+  $("given-view").replaceChildren(givenView);
+  if (givenObserver) givenObserver.disconnect();
+  const syncWidth = () => $("stage-inner").style.setProperty("--view-w", `${givenView.offsetWidth}px`);
+  if ("ResizeObserver" in window) { givenObserver = new ResizeObserver(syncWidth); givenObserver.observe(givenView); }
+  requestAnimationFrame(syncWidth);
+  setStageVerdict("");
   resetResult();
   updateSplit();
   if (!splitObserver && "ResizeObserver" in window) {
@@ -1372,7 +1462,7 @@ function goTo(i) {
     Engine.stop(null);
   }
   clearTimeout(saveTimer);
-  state.codes[QUESTIONS[state.index].id] = editor.get();
+  storeCode(QUESTIONS[state.index], editor.get());
   state.index = i;
   persist();
   renderQuestion();
@@ -1448,10 +1538,16 @@ function nextButton() {
   return b;
 }
 
-function showResult(q, data) {
+function showResult(q, data, code) {
   const n = q.width * q.height;
   editor.clearError();
   renderOutput(data);
+
+  // הרצה של הקוד ההתחלתי כמו שהוא (למשל בשאלה 1, שבה מבקשים להריץ אותו) אינה נחשבת טעות
+  const onlyStarter = typeof code === "string" && code.trim() === q.starter.trim() && data.status === "wrong";
+  if (data.status === "correct") setStageVerdict("ok");
+  else if (onlyStarter || ["stopped", "engine", "internal"].includes(data.status)) setStageVerdict("");
+  else setStageVerdict("bad");
 
   if (data.render) {
     $("result-view").replaceChildren(buildPixelView({
@@ -1479,9 +1575,15 @@ function showResult(q, data) {
         "כל הכבוד. התמונה שיצרתם זהה לתמונה המבוקשת.",
         ...(last ? ["סיימתם את כל השאלות."] : []),
       ], nextButton());
+      const colors = [...new Set((data.render || []).filter(Boolean).map((p) => `rgb(${p[0]}, ${p[1]}, ${p[2]})`))];
+      requestAnimationFrame(() => confetti(colors));
       break;
     }
     case "wrong": {
+      if (onlyStarter) {
+        setStatus("info", "הרצתם", ["זו התוצאה של הקוד הנתון. עכשיו השלימו את המשימה."]);
+        break;
+      }
       const parts = [...problems];
       const notes = data.cellNotes || {};
       const diffCount = (data.diff || []).filter((i) => !notes[String(i)]).length;
@@ -1545,12 +1647,14 @@ async function run() {
   state.running = true;
   setRunButton(true);
   setStatus("busy", "רץ", ["מריץ את הקוד…"]);
+  setStageVerdict("");
   clearTimeout(saveTimer);
-  state.codes[q.id] = editor.get();
+  const code = editor.get();
+  storeCode(q, code);
   persist();
 
   const data = await Engine.run({
-    code: editor.get(),
+    code,
     solution: q.solution || "",
     pixels: q.pixels,
     width: q.width,
@@ -1567,7 +1671,7 @@ async function run() {
   if (token !== state.runToken) return;
   state.running = false;
   setRunButton(false);
-  showResult(q, data);
+  showResult(q, data, code);
 }
 
 /* ================================================================
@@ -1596,10 +1700,11 @@ $("reset-btn").addEventListener("click", () => {
   disarmReset();
   const q = QUESTIONS[state.index];
   editor.set(q.starter);
-  state.codes[q.id] = q.starter;
+  delete state.codes[q.id];
   persist();
   resetResult();
   setStatus(null);
+  setStageVerdict("");
   editor.focus();
 });
 
