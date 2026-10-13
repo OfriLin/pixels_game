@@ -903,6 +903,293 @@ self.onmessage = async (event) => {
 };
 </script>
 
+<!-- ============================================================
+     מנוע גיבוי: MicroPython. גרסה קטנה וחסכונית של פייתון, שנטענת רק אם
+     הדפדפן לא מצליח לטעון את Pyodide (למשל בדפדפן של 32 ביט).
+     אין בה מודול ast, ולכן בדיקת הדרישות (למשל "חובה for") נעשית ב-JavaScript.
+     ============================================================ -->
+<script type="text/plain" id="py-runner-micro">
+import io
+import json
+import sys
+
+_STUDENT_FILE = "student.py"
+
+
+def show_image(*args, **kwargs):
+    pass
+
+
+def display(*args, **kwargs):
+    pass
+
+
+def _no_input(*args, **kwargs):
+    raise RuntimeError("input() is not available here. Write the values directly in the code.")
+
+
+def _namespace(p):
+    return {
+        "__name__": "__main__",
+        "pixels": [tuple(px) for px in p["pixels"]],
+        "WIDTH": p["width"],
+        "HEIGHT": p["height"],
+        "show_image": show_image,
+        "display": display,
+        "input": _no_input,
+    }
+
+
+def _quoted_name(message):
+    i = message.find("'")
+    j = message.find("'", i + 1)
+    if i >= 0 and j > i:
+        return message[i + 1:j]
+    return "?"
+
+
+def _indent(text):
+    return len(text) - len(text.lstrip())
+
+
+def _is_block_header(stripped):
+    word = stripped.replace(":", " ").split()[0] if stripped else ""
+    return word in ("for", "if", "elif", "else", "while", "def")
+
+
+def _syntax_hint(code, line):
+    lines = code.split("\n")
+    for ln in (line, line - 1):
+        if 1 <= ln <= len(lines):
+            stripped = lines[ln - 1].strip()
+            if stripped and _is_block_header(stripped) and not stripped.endswith(":"):
+                return "חסרות נקודתיים `:` בסוף השורה, למשל בסוף שורת ה-`for`."
+    if 2 <= line <= len(lines):
+        prev = lines[line - 2]
+        if prev.strip().endswith(":") and _indent(lines[line - 1]) <= _indent(prev):
+            return "בעיית הזחה. השורות שבתוך לולאה או תנאי צריכות להיות מוזחות פנימה (4 רווחים)."
+    return "שגיאת תחביר. בדקו סוגריים, פסיקים ונקודתיים בשורה המסומנת או בשורה שלפניה."
+
+
+def _hint(name, message):
+    m = (message or "").lower()
+    if name == "NameError":
+        n = _quoted_name(message or "")
+        if n == "_":
+            return "בקוד עדיין יש `_`. במקום כל `_` כתבו את הערך המתאים."
+        return "השם `%s` לא מוגדר. בדקו שאין שגיאת כתיב, ושהמשתנה הוגדר לפני השימוש בו." % n
+    if name == "IndexError":
+        return "ניסיתם לגשת למקום שלא קיים ברשימה. האינדקס הראשון הוא `0`, והאחרון הוא `len(pixels) - 1`."
+    if name == "TypeError":
+        if "item assignment" in m and "tuple" in m:
+            return "אי אפשר לשנות ערך בתוך טאפל קיים. צרו טאפל חדש במקומו, למשל `(r, g, 0)`."
+        if "positional argument" in m:
+            return "מספר הערכים שהעברתם לפונקציה לא מתאים. למשל, `append` מקבלת ערך אחד בלבד, ולכן מעבירים לה טאפל שלם: `append((r, g, 0))`."
+        if "iterable" in m or "unpack" in m:
+            return "ניסיתם לעבור בלולאה או לפרק ערך שאינו רשימה או טאפל. בדקו על מה עוברת הלולאה."
+        return "פעולה שלא מתאימה לסוג הנתונים. בדקו איזה סוג יש לכל משתנה בשורה המסומנת."
+    if name == "ValueError" and "unpack" in m:
+        return "מספר המשתנים לא מתאים למספר הערכים. בכל פיקסל יש בדיוק 3 ערכים: `r, g, b`."
+    if name == "AttributeError":
+        return "לסוג הנתונים הזה אין את הפעולה שניסיתם להפעיל. בדקו את האיות, למשל `append`."
+    return ""
+
+
+def _error_info(e, code):
+    buf = io.StringIO()
+    sys.print_exception(e, buf)
+    line = None
+    key = 'File "%s", line ' % _STUDENT_FILE
+    for row in buf.getvalue().split("\n"):
+        i = row.find(key)
+        if i >= 0:
+            digits = ""
+            for ch in row[i + len(key):]:
+                if "0" <= ch <= "9":
+                    digits += ch
+                else:
+                    break
+            if digits:
+                line = int(digits)
+    name = type(e).__name__
+    message = str(e)
+    if name in ("SyntaxError", "IndentationError"):
+        hint = _syntax_hint(code, line or 0)
+    else:
+        hint = _hint(name, message)
+    return {"type": name, "message": message, "line": line, "hint": hint}
+
+
+def _pick(ns, names):
+    found = [(n, ns[n]) for n in names if n in ns]
+    if not found:
+        return None, None
+    for n, v in found:
+        if isinstance(v, (list, tuple)) and len(v) > 0:
+            return n, v
+    return found[0]
+
+
+def _short_repr(obj):
+    try:
+        text = repr(obj)
+    except Exception:
+        text = "?"
+    return text if len(text) <= 40 else text[:37] + "..."
+
+
+def _inspect(value, n, var):
+    if not isinstance(value, (list, tuple)):
+        return None, ["`%s` צריך להיות רשימה של פיקסלים, אבל הוא מסוג `%s`." % (var, type(value).__name__)], {}, [], None
+    items = list(value)
+    render, notes, as_list = [], {}, []
+    for i, px in enumerate(items[:n]):
+        note = None
+        if not isinstance(px, (tuple, list)):
+            note = "האיבר הוא `%s` ולא טאפל של שלושה צבעים." % type(px).__name__
+        elif len(px) != 3:
+            note = "בטאפל יש %d ערכים במקום 3." % len(px)
+        elif not all(isinstance(c, int) and not isinstance(c, bool) for c in px):
+            if any(isinstance(c, float) for c in px):
+                note = "כל ערך בטאפל צריך להיות מספר שלם, אבל יש כאן מספר עשרוני. חילוק רגיל `/` נותן מספר עשרוני, וחילוק שלמים `//` נותן מספר שלם."
+            else:
+                note = "כל ערך בטאפל צריך להיות מספר שלם."
+        elif not all(0 <= c <= 255 for c in px):
+            note = "כל ערך בטאפל צריך להיות בין 0 ל-255."
+        if note:
+            render.append(None)
+            notes[str(i)] = note
+        else:
+            render.append([int(c) for c in px])
+            if isinstance(px, list):
+                as_list.append(i)
+    while len(render) < n:
+        render.append(None)
+    problems = []
+    if len(items) != n:
+        problems.append("ברשימה `%s` יש %d פיקסלים, אבל בתמונה צריכים להיות %d." % (var, len(items), n))
+    if notes:
+        problems.append("%d מהפיקסלים אינם טאפל תקין מהצורה `(R, G, B)`. הם מסומנים באדום ברשימה." % len(notes))
+        unique = []
+        for text in notes.values():
+            if text not in unique:
+                unique.append(text)
+        problems.extend(unique[:2])
+    reprs = [_short_repr(px) for px in items[:1024]]
+    return render, problems, notes, as_list, reprs
+
+
+def _run(p):
+    n = p["width"] * p["height"]
+    result_vars = p["resultVars"]
+    out = {"status": "", "stdout": "", "images": [], "problems": [], "cellNotes": {},
+           "diff": [], "var": result_vars[0], "render": None, "violations": []}
+    code = p["code"]
+    try:
+        compiled = compile(code, _STUDENT_FILE, "exec")
+    except Exception as e:
+        out["status"] = "syntax"
+        out["error"] = _error_info(e, code)
+        return out
+
+    expected = None
+    if p.get("solution"):
+        try:
+            sol_ns = _namespace(p)
+            exec(compile(p["solution"], "solution.py", "exec"), sol_ns)
+            sol_value = _pick(sol_ns, result_vars)[1]
+            expected = [tuple(px) for px in sol_value]
+        except Exception as e:
+            out["solutionError"] = "%s: %s" % (type(e).__name__, e)
+
+    ns = _namespace(p)
+    try:
+        exec(compiled, ns)
+    except (Exception, SystemExit) as e:
+        out["status"] = "error"
+        out["error"] = _error_info(e, code)
+        return out
+
+    var, value = _pick(ns, result_vars)
+    if var is None:
+        out["status"] = "missing"
+        return out
+    out["var"] = var
+    render, problems, notes, as_list, reprs = _inspect(value, n, var)
+    out["render"], out["problems"], out["cellNotes"], out["reprs"] = render, problems, notes, reprs
+    if render is None:
+        out["status"] = "invalid"
+        return out
+    out["violations"] = list(p.get("violations") or [])
+    if expected is None:
+        out["status"] = "ran"
+        return out
+
+    values = [tuple(px) if isinstance(px, (list, tuple)) else px for px in value]
+    diff = [i for i in range(n) if i >= len(values) or i >= len(expected) or values[i] != expected[i]]
+    out["diff"] = diff
+    if diff or len(values) != len(expected):
+        out["status"] = "wrong"
+        original = [tuple(px) for px in p["pixels"]]
+        if values == original and expected != original:
+            out["unchanged"] = True
+        return out
+    if as_list:
+        out["status"] = "almost"
+        return out
+    if out["violations"]:
+        out["status"] = "rule"
+        return out
+    out["status"] = "correct"
+    return out
+
+
+def _run_task(payload_json):
+    p = json.loads(payload_json)
+    try:
+        result = _run(p)
+    except Exception as e:
+        result = {"status": "internal", "message": "%s: %s" % (type(e).__name__, e)}
+    return json.dumps(result)
+</script>
+
+<script type="text/plain" id="worker-micro-src">
+let mp = null;
+
+self.onmessage = async (event) => {
+  const msg = event.data;
+
+  if (msg.type === "init") {
+    try {
+      const { loadMicroPython } = await import(msg.url + "micropython.mjs");
+      mp = await loadMicroPython({
+        url: msg.url + "micropython.wasm",
+        heapsize: 16 * 1024 * 1024,
+        stdout: () => {},
+        stderr: () => {},
+      });
+      mp.runPython(msg.runner);
+      self.postMessage({ type: "ready" });
+    } catch (err) {
+      self.postMessage({ type: "fatal", message: String((err && err.message) || err) });
+    }
+    return;
+  }
+
+  if (msg.type === "run") {
+    const { runId, payload } = msg;
+    try {
+      self.postMessage({ type: "exec-start", runId });
+      mp.globals.set("_payload_json", JSON.stringify(payload));
+      mp.runPython("_result_json = _run_task(_payload_json)");
+      self.postMessage({ type: "result", runId, data: JSON.parse(mp.globals.get("_result_json")) });
+    } catch (err) {
+      self.postMessage({ type: "result", runId, data: { status: "internal", message: String((err && err.message) || err) } });
+    }
+  }
+};
+</script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
@@ -915,6 +1202,7 @@ self.onmessage = async (event) => {
    הגדרות כלליות
    ================================================================ */
 const PYODIDE_URL = "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/";
+const MICROPYTHON_URL = "https://cdn.jsdelivr.net/npm/@micropython/micropython-webassembly-pyscript@1.27.0/";  // מנוע גיבוי
 const RUN_TIMEOUT_MS = 6000;               // אחרי כמה זמן לעצור קוד שלא מסתיים
 const STORAGE_KEY = "pixel-by-pixel:v2";   // שמירת הקוד וההתקדמות בדפדפן של התלמיד
 
@@ -1176,36 +1464,90 @@ state.index = Math.max(0, Math.min(QUESTIONS.length - 1, state.index));
 function persist() { store.write({ codes: state.codes, solved: state.solved, index: state.index }); }
 
 /* ================================================================
-   מנוע הפייתון (Pyodide בתוך Web Worker)
+   מנוע הפייתון (Pyodide, ואם הוא לא נטען: MicroPython), בתוך Web Worker
    ================================================================ */
+/* שני מנועים: Pyodide (פייתון מלא) כברירת מחדל, ו-MicroPython (קטן וחסכוני בזיכרון) כגיבוי.
+   אם Pyodide לא נטען, למשל בדפדפן של 32 ביט, האתר עובר לבד ל-MicroPython,
+   וזוכר את הבחירה בדפדפן הזה למשך כמה ימים כדי לא לנסות שוב בכל פתיחה. */
+const ENGINES = {
+  pyodide: { worker: "worker-src", runner: "py-runner", url: PYODIDE_URL, module: false },
+  micro: { worker: "worker-micro-src", runner: "py-runner-micro", url: MICROPYTHON_URL, module: true },
+};
+const ENGINE_KEY = "pixel-by-pixel:engine";
+const ENGINE_MEMORY_DAYS = 3;
+
+function rememberedEngine() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(ENGINE_KEY) || "null");
+    if (saved && saved.kind === "micro" && Date.now() - saved.at < ENGINE_MEMORY_DAYS * 864e5) return "micro";
+  } catch (e) { /* אין אחסון */ }
+  return "pyodide";
+}
+function rememberEngine(kind) {
+  try {
+    if (kind === "micro") localStorage.setItem(ENGINE_KEY, JSON.stringify({ kind, at: Date.now() }));
+    else localStorage.removeItem(ENGINE_KEY);
+  } catch (e) { /* אין אחסון */ }
+}
+
+/* בדיקת דרישות לפי טקסט הקוד, למנוע הגיבוי שאין בו ניתוח AST */
+function textRuleViolations(code, rules) {
+  const bare = code.replace(/("{3}[\s\S]*?"{3}|'{3}[\s\S]*?'{3}|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|#[^\n]*)/g, " ");
+  const found = [];
+  if (rules.noLoops && /\b(for|while)\b/.test(bare)) found.push("בשאלה הזו צריך לשנות כל פיקסל ישירות לפי האינדקס שלו, בלי לולאה.");
+  if (rules.requireFor && !/^[ \t]*for\b/m.test(bare)) found.push("בשאלה הזו צריך להשתמש בלולאת `for`.");
+  return found;
+}
+
 const Engine = (() => {
-  const workerSrc = $("worker-src").textContent;
-  const runnerSrc = $("py-runner").textContent;
+  let kind = rememberedEngine();
   let worker = null, ready = false, failed = false;
   let pending = null, queued = null, timer = null, seq = 0;
   let onState = () => {};
 
   function start() {
     ready = false; failed = false;
-    onState("loading");
+    onState("loading", kind);
+    const cfg = ENGINES[kind];
+    let w;
     try {
-      const url = URL.createObjectURL(new Blob([workerSrc], { type: "text/javascript" }));
-      worker = new Worker(url);
+      const url = URL.createObjectURL(new Blob([$(cfg.worker).textContent], { type: "text/javascript" }));
+      w = cfg.module ? new Worker(url, { type: "module" }) : new Worker(url);
     } catch (err) { fail(String(err)); return; }
-    worker.onmessage = (e) => handle(e.data);
-    worker.onerror = (e) => { if (e.preventDefault) e.preventDefault(); fail(e.message || "worker error"); };
-    worker.postMessage({ type: "init", url: PYODIDE_URL, runner: runnerSrc });
+    worker = w;
+    w.onmessage = (e) => { if (w === worker) handle(e.data); };
+    w.onerror = (e) => {
+      if (e.preventDefault) e.preventDefault();
+      if (w === worker) fail(e.message || "worker error");
+    };
+    w.postMessage({ type: "init", url: cfg.url, runner: $(cfg.runner).textContent });
   }
+
   function fail(message) {
-    ready = false; failed = true;
-    onState("error", message);
     clearTimeout(timer);
+    if (worker) { worker.terminate(); worker = null; }
+    ready = false;
+    if (kind === "pyodide") {
+      // המנוע הרגיל נכשל: עוברים למנוע הגיבוי. הרצה שחיכתה תישלח אליו כשיהיה מוכן.
+      console.warn("Pyodide לא נטען, עוברים ל-MicroPython:", message);
+      kind = "micro";
+      rememberEngine("micro");
+      if (pending) queued = pending.msg;
+      start();
+      return;
+    }
+    failed = true;
+    rememberEngine("pyodide");   // בפעם הבאה ננסה שוב את המנוע הרגיל
+    onState("error", kind, message);
     const p = pending; pending = null; queued = null;
     if (p) p.resolve({ status: "engine", message });
   }
+
   function handle(msg) {
     if (msg.type === "ready") {
-      ready = true; onState("ready");
+      ready = true;
+      if (kind === "pyodide") rememberEngine("pyodide");
+      onState("ready", kind);
       if (queued) { worker.postMessage(queued); queued = null; }
       return;
     }
@@ -1222,31 +1564,50 @@ const Engine = (() => {
       p.resolve(msg.data);
     }
   }
+
   function run(payload, onPhase = () => {}) {
     if (failed) start();
     return new Promise((resolve) => {
       const id = ++seq;
-      pending = { id, resolve, onPhase };
       const msg = { type: "run", runId: id, payload };
+      pending = { id, resolve, onPhase, msg };
       if (ready) worker.postMessage(msg);
       else { queued = msg; onPhase("waiting"); }
     });
   }
+
   function stop(reason) {
     clearTimeout(timer);
     const p = pending; pending = null; queued = null;
-    if (worker) worker.terminate();
+    if (worker) { worker.terminate(); worker = null; }
     start();
     if (p) p.resolve({ status: reason || "stopped" });
   }
-  return { start, run, stop, onState: (fn) => { onState = fn; } };
+
+  /* בדפדפן שמדווח שהוא 32 ביט מתחילים ישר במנוע הגיבוי, בלי להוריד את Pyodide לחינם */
+  async function boot() {
+    try {
+      if (kind === "pyodide" && navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+        const info = await navigator.userAgentData.getHighEntropyValues(["bitness"]);
+        if (info && info.bitness === "32") kind = "micro";
+      }
+    } catch (e) { /* לא ידוע, ממשיכים כרגיל */ }
+    start();
+  }
+
+  return { start: boot, run, stop, onState: (fn) => { onState = fn; } };
 })();
 
-Engine.onState((s, message) => {
+Engine.onState((s, kind, message) => {
   const box = $("engine");
+  const micro = kind === "micro";
   box.dataset.state = s;
-  $("engine-text").textContent = s === "ready" ? "פייתון מוכן" : s === "error" ? "פייתון לא נטען" : "טוען את פייתון…";
-  box.title = s === "error" && message ? message : "";
+  $("engine-text").textContent =
+    s === "ready" ? (micro ? "פייתון מוכן (גרסה קלה)" : "פייתון מוכן") :
+    s === "error" ? "פייתון לא נטען" : "טוען את פייתון…";
+  box.title =
+    s === "error" && message ? message :
+    s === "ready" && micro ? "הדפדפן הזה לא הצליח לטעון את המנוע הרגיל, ולכן נטען מנוע קל וחסכוני (MicroPython). כל השאלות עובדות, אבל חלק מהודעות השגיאה פחות מפורטות." : "";
 });
 
 /* ================================================================
@@ -1783,6 +2144,7 @@ async function run() {
     height: q.height,
     resultVars: q.resultVars,
     rules: q.rules || {},
+    violations: textRuleViolations(code, q.rules || {}),   // בשביל מנוע הגיבוי
   }, (phase) => {
     if (token !== state.runToken) return;
     if (phase === "waiting") setStatus("busy", "ממתין", ["פייתון עדיין נטען. הקוד ירוץ מיד כשהטעינה תסתיים."]);
